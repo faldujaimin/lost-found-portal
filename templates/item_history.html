@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+    <h2>Item History (Admin/HOD Only)</h2>
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>Item Name</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Location</th>
+                <th>Reported By</th>
+                <th>Reported At</th>
+                <th>Active</th>
+                <th>Deleted By</th>
+                <th>Deleted At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr class="{{ 'table-danger' if not item.is_active else '' }}">
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.description | truncate(50) }}</td>
+                <td>{{ item.status }}</td>
+                <td>{{ item.lost_found_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ item.location }}</td>
+                <td>{{ item.reporter.full_name }} ({{ item.reporter.registration_no }})</td>
+                <td>{{ item.reported_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ 'Yes' if item.is_active else 'No' }}</td>
+                <td>{{ item.deleter.full_name if item.deleter else 'N/A' }}</td>
+                <td>{{ item.deleted_at.strftime('%Y-%m-%d %H:%M') if item.deleted_at else 'N/A' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="10">No items in history.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock content %}

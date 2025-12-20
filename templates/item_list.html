@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+    <h2>Lost & Found Items</h2>
+    <div class="row">
+        {% for item in items %}
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    {% if item.image_filename %}
+                        <img src="{{ url_for('static', filename='uploads/' + item.image_filename) }}" class="card-img-top" alt="{{ item.item_name }}">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='images/placeholder.png') }}" class="card-img-top" alt="No Image">
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ item.item_name }}</h5>
+                        <p class="card-text">{{ item.description | truncate(70) }}</p>
+                        <p class="card-text"><small class="text-muted">Status: {{ item.status }}</small></p>
+                        <p class="card-text"><small class="text-muted">Date: {{ item.lost_found_date.strftime('%Y-%m-%d') }}</small></p>
+                        <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn btn-info btn-sm">View Details</a>
+                        {% if current_user.is_admin() or current_user.is_hod() %}
+                            <form action="{{ url_for('delete_item', item_id=item.id) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to move this item to history?');">Delete</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer text-muted">
+                        Reported by: {{ item.reporter.full_name }} on {{ item.reported_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <p class="col-12">No active items to display.</p>
+        {% endfor %}
+    </div>
+{% endblock content %}

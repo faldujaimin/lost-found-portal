@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow p-4 mt-5 themed-panel glass">
+                <h2 class="card-title text-center mb-4">{{ title }}</h2>
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+                    <div class="form-group">
+                        {{ form.registration_no.label(class="form-control-label") }}
+                        {{ form.registration_no(class="form-control", placeholder="e.g., 2023BTECH12345") }}
+                        {% if form.registration_no.errors %}
+                            {% for error in form.registration_no.errors %}
+                                <div class="alert alert-danger mt-1">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        {{ form.full_name.label(class="form-control-label") }}
+                        {{ form.full_name(class="form-control", placeholder="Your Full Name") }}
+                        {% if form.full_name.errors %}
+                            {% for error in form.full_name.errors %}
+                                <div class="alert alert-danger mt-1">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        {{ form.email.label(class="form-control-label") }}
+                        {{ form.email(class="form-control", placeholder="Optional: your.email@example.com") }}
+                        {% if form.email.errors %}
+                            {% for error in form.email.errors %}
+                                <div class="alert alert-danger mt-1">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        {{ form.password.label(class="form-control-label") }}
+                        {{ form.password(class="form-control", placeholder="Choose a strong password") }}
+                        {% if form.password.errors %}
+                            {% for error in form.password.errors %}
+                                <div class="alert alert-danger mt-1">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        {{ form.confirm_password.label(class="form-control-label") }}
+                        {{ form.confirm_password(class="form-control", placeholder="Confirm your password") }}
+                        {% if form.confirm_password.errors %}
+                            {% for error in form.confirm_password.errors %}
+                                <div class="alert alert-danger mt-1">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="form-group text-center">
+                        {{ form.submit(class="btn btn-success btn-lg mt-3") }}
+                    </div>
+                    <small class="text-muted text-center d-block mt-3">
+                        Already have an account? <a href="{{ url_for('login') }}">Log In</a>
+                    </small>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock content %}

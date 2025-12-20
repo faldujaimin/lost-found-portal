@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="card mb-3">
+        <div class="row no-gutters">
+            <div class="col-md-4">
+                {% if item.image_filename %}
+                    <img src="{{ url_for('static', filename='uploads/' + item.image_filename) }}" class="card-img" alt="{{ item.item_name }}">
+                {% else %}
+                    <img src="{{ url_for('static', filename='images/placeholder.png') }}" class="card-img" alt="No Image">
+                {% endif %}
+            </div>
+            <div class="col-md-8">
+                <div class="card-body">
+                    <h2 class="card-title">{{ item.item_name }}</h2>
+                    <p class="card-text">{{ item.description }}</p>
+                    <p class="card-text"><strong>Status:</strong> <span class="badge badge-{{ 'success' if item.status == 'Found' else 'danger' }}">{{ item.status }}</span></p>
+                    <p class="card-text"><strong>Date {{ 'Found' if item.status == 'Found' else 'Lost' }}:</strong> {{ item.lost_found_date.strftime('%Y-%m-%d') }}</p>
+                    <p class="card-text"><strong>Location {{ 'Found' if item.status == 'Found' else 'Lost' }}:</strong> {{ item.location }}</p>
+                    <p class="card-text"><small class="text-muted">Reported by: {{ item.reporter.full_name }} ({{ item.reporter.registration_no }}) on {{ item.reported_at.strftime('%Y-%m-%d %H:%M') }}</small></p>
+                    {% if not item.is_active %}
+                        <p class="card-text text-danger"><strong>This item is in history.</strong> Deleted by: {{ item.deleter.full_name if item.deleter else 'N/A' }} on {{ item.deleted_at.strftime('%Y-%m-%d %H:%M') if item.deleted_at else 'N/A' }}</p>
+                    {% endif %}
+                    <a href="{{ url_for('items') }}" class="btn btn-secondary">Back to List</a>
+                    {% if current_user.is_admin() or current_user.is_hod() %}
+                        {% if item.is_active %}
+                        <form action="{{ url_for('delete_item', item_id=item.id) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to move this item to history?');">Delete Item</button>
+                        </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <h5>Discussion</h5>
+            <p class="text-muted">Ask questions or coordinate with other students about this item.</p>
+
+            <div id="messages" style="max-height:320px; overflow:auto; margin-bottom:12px;">
+                {% for m in messages %}
+                    <div class="mb-2">
+                        <div style="font-size:0.9rem; font-weight:600;">{{ m.user.full_name }} <small class="text-muted">{{ m.timestamp.strftime('%Y-%m-%d %H:%M') }}</small></div>
+                        <div style="background:#f8f9fa; padding:8px; border-radius:6px;">{{ m.content }}</div>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No messages yet. Start the conversation!</p>
+                {% endfor %}
+            </div>
+
+            <form method="post">
+                {{ form.hidden_tag() }}
+                <div class="form-group">
+                    {{ form.content(class_='form-control', rows=3, placeholder='Write a message...') }}
+                </div>
+                <div>
+                    {{ form.submit(class_='btn btn-primary') }}
+                    <a href="{{ url_for('items') }}" class="btn btn-secondary">Back</a>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock content %}

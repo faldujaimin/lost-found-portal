@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+    <h2>{{ title }}</h2>
+    <div class="items-grid">
+        {% for u in users %}
+            <div class="card p-3">
+                <div class="card-body">
+                    <h5 class="card-title">{{ loop.index }}. {{ u.full_name }} ({{ u.registration_no }})</h5>
+                    <p class="card-text">Level: <strong>{{ u.level }}</strong></p>
+                    <p class="card-text">Points: <strong>{{ u.points or 0 }}</strong></p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock content %}

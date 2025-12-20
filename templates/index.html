@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="jumbotron">
+        <h1 class="display-4">Welcome to the Lost & Found Portal!</h1>
+        <p class="lead">Helping students find their lost items and report found ones.</p>
+        <hr class="my-4">
+        <p>Login to report items, or browse the current list of lost and found articles.</p>
+        <a class="btn btn-primary btn-lg" href="{{ url_for('items') }}" role="button">View All Items</a>
+        {% if not current_user.is_authenticated %}
+            <a class="btn btn-success btn-lg" href="{{ url_for('register') }}" role="button">Register Now</a>
+        {% endif %}
+    </div>
+{% endblock content %}

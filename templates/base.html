@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lost & Found Portal - {{ title }}</title>
+    <!-- Link Bootstrap CSS for quick styling -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Link your custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Full-page decorative background (behind all content) -->
+    <div class="site-bg" aria-hidden="true" style="background-image: url('{{ url_for('static', filename='bg.jpg') }}');"></div>
+    <nav class="navbar navbar-expand-lg">
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('home') }}">
+            <img class="nav-logo" src="{{ url_for('static', filename='l&f.png') }}" alt="Lost & Found logo" style="height:34px; width:auto; margin-right:8px;" />
+            <span style="font-weight:700;">Lost & Found</span>
+        </a>
+        
+        <!-- *** CRITICAL FIX: ADDED NAVBAR TOGGLER BUTTON *** -->
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <!-- animated hamburger -->
+            <span class="toggler-icon" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+            </span>
+        </button>
+        <!-- *** END CRITICAL FIX *** -->
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('items') }}">View Items</a>
+                </li>
+                {% if current_user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('report_lost') }}">Report Lost</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('report_found') }}">Report Found</a>
+                </li>
+                {% if current_user.is_admin() or current_user.is_hod() %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('item_history') }}">History</a>
+                </li>
+                {% endif %}
+                {% endif %}
+            </ul>
+            <!-- Search form -->
+            <form class="form-inline my-2 my-lg-0" method="get" action="{{ url_for('items') }}">
+                <input class="form-control mr-sm-2" type="search" placeholder="Search items..." aria-label="Search" name="q" value="{{ request.args.get('q','') }}">
+                <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+            </form>
+            <!-- Theme toggle -->
+            <div class="ml-2 d-flex align-items-center">
+                <button id="theme-toggle" class="btn btn-sm btn-outline" aria-label="Toggle theme" title="Toggle theme">
+                    <span class="theme-icon" aria-hidden="true">🌙</span>
+                </button>
+            </div>
+            <ul class="navbar-nav">
+                {% if current_user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('profile') }}">Profile</a>
+                </li>
+                <li class="nav-item">
+                    <span class="nav-link">Welcome, {{ current_user.full_name }}! ({{ current_user.role.upper() }})</span>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <!-- debug info removed from UI -->
+
+    <div class="container mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Bootstrap JS and Popper.js (jQuery is a dependency for Bootstrap 4) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- Link your custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

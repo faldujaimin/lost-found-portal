@@ -1,0 +1,324 @@
+Software Requirements Specification (SRS) for Lost and Found Portal
+1. Introduction
+1.1. Purpose
+The purpose of this Software Requirements Specification (SRS) document is to detail the functional and non-functional requirements for the Lost and Found Portal. This portal aims to provide a centralized, efficient, and secure platform for students to report lost or found items within an educational institution, and for designated administrators/HODs to manage these listings. This document serves as a guide for development, testing, and future enhancements of the system.
+
+1.2. Scope
+The Lost and Found Portal will allow students to:
+
+Register and log in using their unique registration number and password.
+
+Report lost items with details such as item name, description, date lost, and location lost.
+
+Report found items with details such as item name, description, date found, location found, and an optional image upload.
+
+View a list of all active lost and found items.
+
+View detailed information for individual items.
+
+The portal will allow Admin/HOD users to:
+
+Log in with their designated credentials.
+
+View all active and historical (soft-deleted) items.
+
+Soft-delete (archive) items from the active list, moving them to a historical record.
+
+The system will maintain a history of all items, including details of who reported them, when, and if/when/by whom they were soft-deleted.
+
+1.3. Definitions, Acronyms, Abbreviations
+SRS: Software Requirements Specification
+
+UI: User Interface
+
+UX: User Experience
+
+HOD: Head of Department (an administrative role)
+
+Admin: Administrator (an administrative role)
+
+DB: Database
+
+ORM: Object-Relational Mapping (e.g., SQLAlchemy)
+
+Flask: Python web framework used for backend development.
+
+HTML: HyperText Markup Language
+
+CSS: Cascading Style Sheets
+
+JS: JavaScript
+
+Soft-Delete: Marking a record as inactive or deleted in the database without physically removing it, preserving historical data.
+
+1.4. References
+IEEE Std 830-1998: IEEE Recommended Practice for Software Requirements Specifications.
+
+Flask Documentation: https://flask.palletsprojects.com/
+
+Flask-SQLAlchemy Documentation: https://flask-sqlalchemy.palletsprojects.com/
+
+Flask-Login Documentation: https://flask-login.readthedocs.io/
+
+Flask-WTF Documentation: https://flask-wtf.readthedocs.io/
+
+Bootstrap 4 Documentation: https://getbootstrap.com/docs/4.5/
+
+1.5. Overview
+This document is organized into three main sections: Introduction, Overall Description, and Specific Requirements. The Introduction provides the purpose, scope, and definitions. The Overall Description outlines the general factors affecting the product. The Specific Requirements section details the functional and non-functional requirements in a precise manner.
+
+2. Overall Description
+2.1. Product Perspective
+The Lost and Found Portal is a standalone web application designed for a specific educational institution. It is not part of a larger system but will interact with standard web browsers. It replaces manual, informal, or paper-based lost and found processes.
+
+2.2. Product Functions
+The primary functions of the system include:
+
+Secure user authentication (student, admin, HOD).
+
+Reporting of lost items.
+
+Reporting of found items with image uploads.
+
+Displaying active lost and found items.
+
+Providing detailed views of individual items.
+
+Maintaining a comprehensive history of all reported items.
+
+Allowing Admin/HOD roles to manage (soft-delete) items.
+
+2.3. User Characteristics
+Students: Primary users. Expected to be familiar with basic web navigation and form submission. Will use the portal to report and search for items.
+
+Admin/HOD: Administrative users. Expected to have a higher level of technical familiarity. Will manage item listings, view history, and potentially manage user accounts (future scope).
+
+2.4. Constraints
+Technology Stack: Python (Flask), HTML, CSS, JavaScript. SQLAlchemy for ORM.
+
+Database: SQLite for development; scalable relational database (e.g., PostgreSQL, MySQL) for production.
+
+Security: Password hashing, protection against common web vulnerabilities (e.g., SQL injection, XSS).
+
+Image Storage: Images will be stored on the server's file system within the application's static/uploads directory.
+
+User Identification: Students will be uniquely identified by their registration number.
+
+Deployment Environment: Standard web server environment (e.g., Gunicorn/uWSGI with Nginx/Apache for production).
+
+2.5. Assumptions and Dependencies
+Internet Connectivity: Users require internet access to use the web portal.
+
+Browser Compatibility: The application will be compatible with modern web browsers (Chrome, Firefox, Edge, Safari).
+
+Server Resources: Adequate server disk space for image storage and sufficient processing power for application operation.
+
+User Data Accuracy: User-provided data (e.g., item descriptions, contact info) is assumed to be accurate.
+
+Admin/HOD Availability: Designated Admin/HOD personnel will be available to manage the system.
+
+3. Specific Requirements
+3.1. Functional Requirements
+3.1.1. User Authentication
+FR-AUTH-001: Student Registration:
+
+The system SHALL allow new students to register.
+
+Registration SHALL require: Unique Registration Number, Full Name, Password, Confirm Password. Email is optional.
+
+The system SHALL hash and salt passwords before storing them.
+
+The system SHALL validate that the Registration Number is unique.
+
+The system SHALL validate that passwords meet minimum length requirements (e.g., 6 characters) and match the confirmation.
+
+Upon successful registration, the system SHALL redirect the user to the login page and display a success message.
+
+FR-AUTH-002: User Login:
+
+The system SHALL allow registered users (students, admin, HOD) to log in using their Registration Number and Password.
+
+The system SHALL authenticate users against stored credentials.
+
+Upon successful login, the system SHALL redirect the user to the items list or the page they tried to access before login.
+
+Upon failed login, the system SHALL display an error message.
+
+FR-AUTH-003: User Logout:
+
+The system SHALL allow logged-in users to log out, terminating their session.
+
+Upon logout, the system SHALL redirect the user to the home page and display a success message.
+
+FR-AUTH-004: Role-Based Access Control:
+
+The system SHALL differentiate between 'student', 'admin', and 'hod' roles.
+
+Access to item deletion and history viewing SHALL be restricted to 'admin' and 'hod' roles only.
+
+3.1.2. Lost Item Reporting
+FR-LOST-001: Report Lost Item Form:
+
+The system SHALL provide a form for logged-in students to report lost items.
+
+The form SHALL require: Item Name, Detailed Description, Date Lost, and Location Lost.
+
+FR-LOST-002: Submit Lost Item:
+
+Upon submission, the system SHALL record the lost item details in the database.
+
+The item's status SHALL be set to 'Lost'.
+
+The system SHALL automatically associate the item with the reporting student (current user).
+
+The system SHALL record the timestamp of the report.
+
+Upon successful submission, the system SHALL display a success message and redirect to the active items list.
+
+3.1.3. Found Item Reporting
+FR-FOUND-001: Report Found Item Form:
+
+The system SHALL provide a form for logged-in students to report found items.
+
+The form SHALL require: Item Name, Detailed Description, Date Found, Location Found, and an Image Upload.
+
+FR-FOUND-002: Image Upload:
+
+The system SHALL allow users to upload image files (PNG, JPG, JPEG, GIF) for found items.
+
+The system SHALL limit the image file size (e.g., 2MB).
+
+The system SHALL display an image preview before submission.
+
+The system SHALL securely save the uploaded image to the server's static/uploads directory.
+
+The system SHALL store only the image filename in the database.
+
+FR-FOUND-003: Submit Found Item:
+
+Upon submission, the system SHALL record the found item details and the image filename in the database.
+
+The item's status SHALL be set to 'Found'.
+
+The system SHALL automatically associate the item with the reporting student (current user).
+
+The system SHALL record the timestamp of the report.
+
+Upon successful submission, the system SHALL display a success message and redirect to the active items list.
+
+3.1.4. Item Listing and Browsing
+FR-LIST-001: Display Active Items:
+
+The system SHALL display a list of all active (not soft-deleted) lost and found items.
+
+Each item in the list SHALL display: Item Name, a truncated Description, Status (Lost/Found), and Date (Lost/Found).
+
+The list SHALL be ordered by the most recently reported items first.
+
+FR-LIST-002: Item Details View:
+
+The system SHALL allow users to click on an item in the list to view its full details.
+
+The detail view SHALL display: Item Name, full Description, Status, Date, Location, the full Image (if available for found items), and the name and registration number of the reporting user, along with the report timestamp.
+
+If an item is soft-deleted, the detail view SHALL indicate this and show who deleted it and when.
+
+3.1.5. Admin/HOD Privileges
+FR-ADMIN-001: Soft-Delete Item:
+
+Admin/HOD users SHALL have the ability to soft-delete an item from the active list.
+
+Soft-deletion SHALL set the is_active flag of the item to False.
+
+Soft-deletion SHALL record the deleted_by_id (Admin/HOD user ID) and deleted_at timestamp.
+
+The system SHALL require confirmation before performing a soft-delete.
+
+Upon soft-deletion, the item SHALL no longer appear in the general active items list but SHALL be visible in the history view.
+
+FR-ADMIN-002: View Item History:
+
+Admin/HOD users SHALL have a dedicated view to see all items, including active and soft-deleted ones.
+
+The history view SHALL display the same details as the active list, plus the is_active status, deleted_by user, and deleted_at timestamp for soft-deleted items.
+
+3.2. Non-Functional Requirements
+3.2.1. Performance
+NFR-PERF-001: Page Load Time: All pages (excluding initial image uploads) SHALL load within 3 seconds under normal network conditions.
+
+NFR-PERF-002: Image Upload Speed: Image uploads (up to 2MB) SHALL complete within 5 seconds under normal network conditions.
+
+NFR-PERF-003: Query Response Time: Database queries (e.g., loading item lists) SHALL respond within 2 seconds for up to 1000 items.
+
+3.2.2. Security
+NFR-SEC-001: Password Security: All user passwords SHALL be stored as hashed and salted values using a strong, industry-standard algorithm (e.g., PBKDF2, bcrypt via Werkzeug).
+
+NFR-SEC-002: Authentication: The system SHALL enforce strong authentication mechanisms (e.g., session management via Flask-Login) to prevent unauthorized access.
+
+NFR-SEC-003: Authorization: The system SHALL correctly enforce role-based access control, preventing unauthorized users from accessing restricted functionalities (e.g., item deletion, history view).
+
+NFR-SEC-004: Input Validation: All user inputs SHALL be validated on both client-side (where applicable) and server-side to prevent common vulnerabilities like SQL Injection and Cross-Site Scripting (XSS).
+
+NFR-SEC-005: File Upload Security: Uploaded files SHALL be validated for type and size, and filenames SHALL be sanitized to prevent directory traversal attacks.
+
+NFR-SEC-006: Data Protection: Sensitive user data (e.g., email, if collected) SHALL be protected in accordance with privacy best practices.
+
+3.2.3. Usability (UI/UX)
+NFR-USABILITY-001: Intuitive Navigation: The UI SHALL be intuitive and easy to navigate for all user types.
+
+NFR-USABILITY-002: Responsive Design: The UI SHALL be fully responsive and adapt gracefully to various screen sizes (desktop, tablet, mobile).
+
+NFR-USABILITY-003: Clear Feedback: The system SHALL provide clear and timely feedback to users for all actions (e.g., success messages, error messages, loading indicators for uploads).
+
+NFR-USABILITY-004: Accessibility: The UI SHALL adhere to basic web accessibility guidelines (e.g., proper labeling, sufficient color contrast).
+
+3.2.4. Reliability
+NFR-RELIABILITY-001: Error Handling: The system SHALL gracefully handle errors and display user-friendly error messages instead of technical stack traces.
+
+NFR-RELIABILITY-002: Data Integrity: The system SHALL ensure data integrity through proper database constraints (e.g., foreign keys, unique constraints).
+
+NFR-RELIABILITY-003: Uptime: The system SHALL aim for 99% uptime in a production environment (excluding planned maintenance).
+
+3.2.5. Maintainability
+NFR-MAINTAIN-001: Code Readability: The codebase SHALL be well-structured, modular, and extensively commented to facilitate understanding and future modifications.
+
+NFR-MAINTAIN-002: Modularity: The application logic SHALL be separated into distinct modules (e.g., models, forms, routes, config) to promote maintainability.
+
+NFR-MAINTAIN-003: Documentation: Key architectural decisions and complex logic SHALL be documented.
+
+3.2.6. Scalability
+NFR-SCALABILITY-001: User Growth: The system SHALL be designed to accommodate an increasing number of users (e.g., up to 5000 students) without significant performance degradation.
+
+NFR-SCALABILITY-002: Item Growth: The system SHALL be designed to handle a growing number of items (e.g., up to 10,000 items) efficiently.
+
+3.2.7. Portability
+NFR-PORT-001: OS Compatibility: The application SHALL be runnable on common operating systems (Windows, Linux, macOS) in a Python environment.
+
+NFR-PORT-002: Database Portability: The application SHALL support migration to different relational databases (e.g., PostgreSQL, MySQL) with minimal code changes.
+
+4. External Interface Requirements
+4.1. User Interfaces
+Web Browser: The primary user interface will be a standard web browser.
+
+Layout: Consistent header, navigation bar, and footer across all pages.
+
+Forms: All forms (login, register, report item) will be clearly labeled, include input validation messages, and provide appropriate input types (e.g., date pickers).
+
+Tables/Lists: Item listings and history views will be presented in clear, sortable tables or card layouts.
+
+Messages: Flash messages (success, error, info) will be displayed prominently to provide user feedback.
+
+4.2. Hardware Interfaces
+No specific hardware interfaces are required beyond a standard server to host the application and client devices (computers, smartphones, tablets) to access it.
+
+4.3. Software Interfaces
+Web Server Gateway Interface (WSGI): The Flask application will interface with a WSGI server (e.g., Gunicorn, uWSGI) in a production environment.
+
+Database Interface: SQLAlchemy (ORM) will interface with the chosen database (SQLite for development, PostgreSQL/MySQL for production).
+
+Operating System: The application will interact with the underlying operating system for file system operations (e.g., creating directories, saving uploaded files).
+
+4.4. Communications Interfaces
+HTTP/HTTPS: All communication between the client browser and the server will be over HTTP (development) and HTTPS (production) protocols.
+
+Standard Ports: The application will typically run on port 5000 (development) or standard web ports 80/443 (production).
