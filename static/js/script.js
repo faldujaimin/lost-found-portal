@@ -119,10 +119,10 @@ document.addEventListener('DOMContentLoaded', function(){
         if(confirmationBanner){
             if(isPhone){
                 confirmationBanner.style.display = 'block';
-                confirmationBanner.innerHTML = '<div class="alert alert-warning mb-0">Please confirm: I confirm I put "' + (name || 'this item') + '" photo like this</div>';
+                confirmationBanner.textContent = 'Please confirm: I am uploading a photo of "' + (name || 'this item') + '".';
             } else {
                 confirmationBanner.style.display = 'none';
-                confirmationBanner.innerHTML = '';
+                confirmationBanner.textContent = '';
             }
         }
     }
@@ -176,30 +176,87 @@ document.addEventListener('DOMContentLoaded', function(){
     onScroll();
 });
 
-// Theme toggle: add support for light/dark theme and persistence in localStorage
+// Theme toggle: add robust dark mode support, system sync, and accessibility attributes
 document.addEventListener('DOMContentLoaded', function(){
     var toggle = document.getElementById('theme-toggle');
     var themeIcon = toggle ? toggle.querySelector('.theme-icon') : null;
-    var current = localStorage.getItem('site-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 
-    function applyTheme(name){
+    // Follow stored preference if present. If set to 'system' or not set, follow OS preference
+    var stored = localStorage.getItem('site-theme');
+    var mediaQuery = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+
+    function getPreferred(){
+        if(stored === 'dark' || stored === 'light') return stored;
+        if(stored === 'system') return (mediaQuery && mediaQuery.matches) ? 'dark' : 'light';
+        // default: follow system if available
+        return (mediaQuery && mediaQuery.matches) ? 'dark' : 'light';
+    }
+
+    function updateAria(isDark){
+        if(!toggle) return;
+        toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+        toggle.setAttribute('title', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+    }
+
+    function applyTheme(name, persist=true){
         if(name === 'dark'){
             document.documentElement.classList.add('dark-theme');
             if(themeIcon) themeIcon.textContent = '☀️';
+            updateAria(true);
         } else {
             document.documentElement.classList.remove('dark-theme');
             if(themeIcon) themeIcon.textContent = '🌙';
+            updateAria(false);
         }
-        localStorage.setItem('site-theme', name);
+        // Save preference if requested (persist=false used for temporary/system-driven changes)
+        if(persist){
+            localStorage.setItem('site-theme', name);
+            stored = name;
+        }
     }
 
-    // initial
-    applyTheme(current);
+    // React to system theme changes when the user hasn't explicitly chosen (or chose 'system')
+    if(mediaQuery && mediaQuery.addEventListener){
+        mediaQuery.addEventListener('change', function(e){
+            // respect explicit user choice (dark/light) unless they chose 'system' or had no saved value
+            var s = localStorage.getItem('site-theme');
+            if(!s || s === 'system'){
+                var next = e.matches ? 'dark' : 'light';
+                applyTheme(next, false);
+            }
+        });
+    } else if(mediaQuery && mediaQuery.addListener){
+        mediaQuery.addListener(function(e){
+            var s = localStorage.getItem('site-theme');
+            if(!s || s === 'system'){
+                var next = e.matches ? 'dark' : 'light';
+                applyTheme(next, false);
+            }
+        });
+    }
+
+    // initial run
+    applyTheme(getPreferred(), true);
 
     if(toggle){
+        // Standard click toggles between dark and light (explicit user choice)
         toggle.addEventListener('click', function(){
             var now = document.documentElement.classList.contains('dark-theme') ? 'light' : 'dark';
-            applyTheme(now);
+            applyTheme(now, true);
         });
+
+        // Secondary: allow shift+click to set 'system' mode (follow OS)
+        toggle.addEventListener('click', function(e){
+            if(e.shiftKey){
+                localStorage.setItem('site-theme', 'system');
+                // apply according to current system
+                applyTheme((mediaQuery && mediaQuery.matches) ? 'dark' : 'light', false);
+                // brief feedback via title
+                toggle.setAttribute('title', 'Following system theme (hold Shift to toggle system mode)');
+            }
+        });
+
+        // ensure initial aria state
+        updateAria(document.documentElement.classList.contains('dark-theme'));
     }
 });

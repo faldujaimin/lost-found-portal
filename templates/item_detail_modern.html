@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
+
+<div class="container" style="margin-top: 2rem;">
+    <div class="grid grid-cols-1 md:grid-cols-3" style="gap: 1.5rem;">
+        <!-- Main Content Column -->
+        <div style="grid-column: span 2;">
+            <div class="card">
+                <div class="card-header">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="card-title">{{ item.item_name }}</h2>
+                            <div class="flex gap-2 mt-2">
+                                {% if item.status == 'Found' %}
+                                <span class="badge badge-success">Found</span>
+                                {% else %}
+                                <span class="badge badge-warning">Lost</span>
+                                {% endif %}
+                                {% if not item.is_active %}
+                                <span class="badge badge-destructive">Archived</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-content">
+                    <!-- Image (if available) -->
+                    {% if item.image_filename %}
+                    <div class="mb-6">
+                        <img src="{{ url_for('static', filename='uploads/' + item.image_filename) }}"
+                            alt="{{ item.item_name }}" class="rounded-lg shadow-md"
+                            style="max-width: 100%; height: auto; max-height: 500px; object-fit: contain; margin: 0 auto; display: block;">
+                    </div>
+                    {% endif %}
+
+                    <!-- Verification Score (for Found items with verification) -->
+                    {% if item.status == 'Found' and item.verification_score is not none %}
+                    <div class="card mt-4" style="background: hsl(var(--muted) / 0.3);">
+                        <div class="card-header" style="padding-bottom: 0.75rem;">
+                            <h3 class="text-sm font-semibold">AI Verification Analysis</h3>
+                        </div>
+                        <div class="card-content">
+                            {% set confidence_pct = (item.verification_score * 100) | int %}
+                            {% if confidence_pct >= 70 %}
+                            {% set score_class = 'high' %}
+                            {% set badge_class = 'badge-success' %}
+                            {% set status_icon = '' %}
+                            {% elif confidence_pct >= 40 %}
+                            {% set score_class = 'medium' %}
+                            {% set badge_class = 'badge-warning' %}
+                            {% set status_icon = '' %}
+                            {% else %}
+                            {% set score_class = 'low' %}
+                            {% set badge_class = 'badge-destructive' %}
+                            {% set status_icon = '' %}
+                            {% endif %}
+
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium">Confidence Score</span>
+                                <span class="badge {{ badge_class }}">{{ status_icon }} {{ confidence_pct }}%</span>
+                            </div>
+
+                            <div class="score-indicator mb-3">
+                                <div class="score-bar {{ score_class }}" style="width: {{ confidence_pct }}%"></div>
+                            </div>
+
+                            <p class="text-xs text-muted">
+                                {% if confidence_pct >= 70 %}
+                                High confidence match - Item name strongly matches image analysis
+                                {% elif confidence_pct >= 40 %}
+                                Medium confidence - Item name reasonably matches image
+                                {% else %}
+                                Low confidence - Consider verifying item details with reporter
+                                {% endif %}
+                            </p>
+
+                            <!-- Detailed verification info (collapsible) -->
+                            {% if item.verification_details %}
+                            <details class="mt-3">
+                                <summary class="text-xs font-medium cursor-pointer text-primary"
+                                    style="cursor: pointer;">
+                                    View detailed analysis
+                                </summary>
+                                <div class="mt-2 text-xs text-muted" style="padding-left: 1rem;">
+                                    {% set details = item.verification_details | fromjson %}
+                                    {% if details %}
+                                    <p><strong>OCR Text Match:</strong> {{ details.ocr_match or 'N/A' }}</p>
+                                    {% if details.yolo_detections %}
+                                    <p><strong>Detected Objects:</strong>
+                                        {% for det in details.yolo_detections %}
+                                        {{ det.label }} ({{ (det.score * 100) | int }}%){% if not loop.last %}, {% endif
+                                        %}
+                                        {% endfor %}
+                                    </p>
+                                    {% endif %}
+                                    {% if details.clip_match %}
+                                    <p><strong>Semantic Match:</strong> {{ details.clip_match }}</p>
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                            </details>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- OCR Extracted Text -->
+                    {% if item.ocr_extracted_text %}
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h3 class="text-sm font-semibold">Extracted Text from Image</h3>
+                        </div>
+                        <div class="card-content">
+                            <p class="text-sm text-muted">{{ item.ocr_extracted_text }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Description -->
+                    <div class="mt-6">
+                        <h3 class="text-lg font-semibold mb-2">Description</h3>
+                        <p class="text-muted">{{ item.description }}</p>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex gap-2 mt-6">
+                        <a href="{{ url_for('items') }}" class="btn btn-secondary">← Back to List</a>
+                        {% if current_user.is_admin() or current_user.is_hod() %}
+                        {% if item.is_active %}
+                        <form action="{{ url_for('delete_item', item_id=item.id) }}" method="POST"
+                            style="display:inline;">
+                            <button type="submit" class="btn btn-destructive"
+                                onclick="return confirm('Are you sure you want to archive this item?');">
+                                Archive Item
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Discussion Card -->
+            <div class="card mt-6">
+                <div class="card-header">
+                    <h3 class="card-title">Discussion</h3>
+                    <p class="card-description">Ask questions or coordinate with other students about this item</p>
+                </div>
+
+                <div class="card-content">
+                    <div id="messages" style="max-height:400px; overflow-y:auto; margin-bottom:1rem; padding: 0.5rem;">
+                        {% for m in messages %}
+                        <div class="mb-3 p-3 rounded" style="background: hsl(var(--muted) / 0.3);">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="font-semibold text-sm">{{ m.user.full_name }}</span>
+                                <span class="text-xs text-muted">{{ m.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+                            </div>
+                            <p class="text-sm">{{ m.content }}</p>
+                        </div>
+                        {% else %}
+                        <p class="text-muted text-center py-6">No messages yet. Start the conversation!</p>
+                        {% endfor %}
+                    </div>
+
+                    <form method="post">
+                        {{ form.hidden_tag() }}
+                        <div class="form-group">
+                            {{ form.content(class="form-textarea", rows=3, placeholder="Write a message...") }}
+                        </div>
+                        <div class="flex gap-2">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Column -->
+        <div>
+            <!-- Item Details Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title text-lg">Item Details</h3>
+                </div>
+                <div class="card-content">
+                    <div class="space-y-3" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div>
+                            <p class="text-xs text-muted font-medium">DATE {{ 'FOUND' if item.status == 'Found' else
+                                'LOST' }}</p>
+                            <p class="text-sm font-semibold">{{ item.lost_found_date.strftime('%B %d, %Y') }}</p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs text-muted font-medium">LOCATION</p>
+                            <p class="text-sm font-semibold">{{ item.location }}</p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs text-muted font-medium">REPORTED BY</p>
+                            <p class="text-sm font-semibold">{{ item.reporter.full_name }}</p>
+                            <p class="text-xs text-muted">{{ item.reporter.registration_no }}</p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs text-muted font-medium">REPORTED ON</p>
+                            <p class="text-sm">{{ item.reported_at.strftime('%B %d, %Y at %H:%M') }}</p>
+                        </div>
+
+                        {% if not item.is_active and item.deleter %}
+                        <div class="p-3 rounded"
+                            style="background: hsl(var(--destructive) / 0.1); border: 1px solid hsl(var(--destructive) / 0.2);">
+                            <p class="text-xs font-medium text-destructive mb-1">ARCHIVED</p>
+                            <p class="text-xs text-muted">By: {{ item.deleter.full_name }}</p>
+                            <p class="text-xs text-muted">On: {{ item.deleted_at.strftime('%Y-%m-%d %H:%M') if
+                                item.deleted_at else 'N/A' }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title text-sm">Found This Item?</h3>
+                </div>
+                <div class="card-content">
+                    <ul class="text-xs text-muted" style="list-style: none; padding-left: 0; margin: 0;">
+                        <li class="mb-2">Contact the reporter via discussion</li>
+                        <li class="mb-2">Ask for verification photos</li>
+                        <li class="mb-2">Verify item details match</li>
+                        <li class="mb-2">Arrange safe handover location</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media (max-width: 768px) {
+        .grid.md\\:grid-cols-3 {
+            grid-template-columns: 1fr !important;
+        }
+
+        .grid.md\\:grid-cols-3>div {
+            grid-column: span 1 !important;
+        }
+    }
+
+    details summary {
+        list-style: none;
+    }
+
+    details summary::-webkit-details-marker {
+        display: none;
+    }
+
+    details[open] summary::after {
+        content: " ▲";
+    }
+
+    details:not([open]) summary::after {
+        content: " ▼";
+    }
+</style>
+
+{% endblock content %}

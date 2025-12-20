@@ -1,8 +1,9 @@
-from flask import Flask, render_template, redirect, url_for, flash, request
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify
 from flask import abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash
+from passlib.context import CryptContext
 from datetime import datetime
 import os
 import sqlite3
@@ -84,7 +85,7 @@ app.config['SECRET_KEY'] = 'your_super_secret_key_change_this_in_production_real
 # the server process is restarted or run from a different working directory.
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + DB_PATH.replace('\\', '/')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER # Link upload folder to Flask config
-app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 # Limit uploads to 2 Megabytes
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # Limit uploads to 16 Megabytes
 app.config['ALLOWED_EXTENSIONS'] = ALLOWED_EXTENSIONS # Store allowed extensions in config
 # Toggle CLIP-based image-text verification (set to False to disable)
 app.config['USE_CLIP_VERIFICATION'] = True
@@ -123,6 +124,9 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
 # Initialize Flask-Login
 login_manager = LoginManager(app)
 login_manager.login_view = 'login' # Set the login view for @login_required decorator
+
+# Password hashing context: prefer Argon2 and accept pbkdf2_sha256 for legacy hashes
+pwd_context = CryptContext(schemes=["argon2", "pbkdf2_sha256"], deprecated="auto")
 
 try:
     from zoneinfo import ZoneInfo
@@ -234,27 +238,129 @@ def clip_verify(item_name, file_path, threshold=None):
         for tok in name.replace('-', ' ').replace('/', ' ').split():
             if tok and tok.lower() not in candidates:
                 candidates.append(tok)
-        # Add some synonyms from our mapping if present
-        for k in KEYWORD_TO_COCO_LABELS.keys():
-            if k in name.lower() and k not in candidates:
-                candidates.append(k)
+        
+        # Add a set of common object classes to serve as negatives/comparators
+        # This prevents 100% confidence when there is only 1 candidate
+        common_objects = [
+            'cell phone', 'smartphone', 'laptop', 'computer', 
+            'backpack', 'bag', 'handbag', 'wallet', 'purse',
+            'keys', 'keychain', 'watch', 'wrist watch',
+            'headphones', 'earbuds', 'water bottle', 'umbrella',
+            'id card', 'credit card', 'glasses', 'sunglasses',
+            'book', 'notebook', 'shoe', 'clothing'
+        ]
+        
+        for obj in common_objects:
+            if obj not in candidates and obj not in name.lower():
+                candidates.append(obj)
 
         inputs = processor(text=candidates, images=img, return_tensors="pt", padding=True)
         with torch.no_grad():
             outputs = model(**inputs)
             probs = outputs.logits_per_image.softmax(dim=1)[0]
-        # find best match
+        
+        # Get score for the user's item name (or best matching part of it)
+        # We look for the index of the candidate that matches the item_name (or is a part of it)
+        user_candidate_indices = [i for i, c in enumerate(candidates) if c in name or name in c]
+        
+        if not user_candidate_indices:
+             # Should happen rarely as we added name to candidates
+             user_candidate_indices = [0]
+             
+        # The score for the "claimed item" is the max probability among its variations
+        claimed_score = max([float(probs[i]) for i in user_candidate_indices])
+        
+        # find best match overall
         best_idx = int(probs.argmax())
-        score = float(probs[best_idx])
+        best_score = float(probs[best_idx])
         best_label = candidates[best_idx]
-        print(f"DEBUG: CLIP: best match '{best_label}' score={score:.3f} for item='{item_name}'")
-        if score >= threshold:
-            return (True, f"CLIP matched '{best_label}' ({score:.2f})", best_label, score)
+        
+        print(f"DEBUG: CLIP: best match '{best_label}' score={best_score:.3f}, claimed '{item_name}' score={claimed_score:.3f}")
+        
+        # We return the score of the CLAIMED item, but validity is based on whether it's close to the best match
+        if claimed_score >= threshold and (claimed_score >= best_score * 0.8):
+            return (True, f"CLIP matched '{name}' ({claimed_score:.2f})", best_label, claimed_score)
         else:
-            return (False, f"CLIP top match '{best_label}' ({score:.2f})", best_label, score)
+            return (False, f"CLIP found '{best_label}' ({best_score:.2f}) instead of '{name}'", best_label, claimed_score)
+            
     except Exception as e:
         print(f"DEBUG: CLIP verification failed: {e}")
         return (None, f"clip_error: {e}", None, None)
+
+@app.route('/api/analyze_image', methods=['POST'])
+def api_analyze_image():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image provided'}), 400
+    
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+        
+    try:
+        # Save temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], 'temp_' + filename)
+        file.save(temp_path)
+        
+        results = {
+            'detected_objects': [],
+            'best_guess': None,
+            'confidence': 0.0
+        }
+        
+        # 1. Run YOLO
+        try:
+            yolo_dets = detect_with_yolo(temp_path)
+            results['detected_objects'] = yolo_dets
+            if yolo_dets:
+                results['best_guess'] = yolo_dets[0]['label']
+                results['confidence'] = yolo_dets[0]['score']
+        except Exception as e:
+            print(f"YOLO failed: {e}")
+            
+        # 2. Run CLIP with common objects if YOLO failed or for better context
+        # We compare against the common list defined above
+        try:
+             # Re-use logic or call a simplified clip helper
+             # For now, just rely on YOLO for explicit detection display, or add basic CLIP classification if YOLO is empty
+             if not results['detected_objects']:
+                 # Simplified CLIP classification
+                 model_proc = _load_clip_model()
+                 if model_proc:
+                     model, processor = model_proc
+                     from PIL import Image
+                     import torch
+                     img = Image.open(temp_path).convert('RGB')
+                     
+                     common_objects = [
+                        'cell phone', 'laptop', 'bag', 'wallet', 'watch', 
+                        'keys', 'headphones', 'bottle', 'id card', 'book'
+                     ]
+                     inputs = processor(text=common_objects, images=img, return_tensors="pt", padding=True)
+                     with torch.no_grad():
+                        outputs = model(**inputs)
+                        probs = outputs.logits_per_image.softmax(dim=1)[0]
+                        
+                     best_idx = int(probs.argmax())
+                     best_label = common_objects[best_idx]
+                     score = float(probs[best_idx])
+                     
+                     if score > 0.3:
+                         results['best_guess'] = best_label
+                         results['confidence'] = score
+                         results['source'] = 'clip'
+        except Exception as e:
+            print(f"CLIP analysis failed: {e}")
+            
+        # Cleanup
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+            
+        return jsonify(results)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 
 # Lazy YOLOv8 loader and detector (Ultralytics)
@@ -305,6 +411,177 @@ def detect_with_yolo(image_path, conf=0.25):
     except Exception as e:
         print(f"DEBUG: YOLO detection failed: {e}")
         return []
+
+
+# Lazy EasyOCR loader for text extraction
+_ocr_reader = None
+
+def _load_ocr_reader():
+    """Lazy load EasyOCR reader (downloads model on first use)."""
+    global _ocr_reader
+    if _ocr_reader is not None:
+        return _ocr_reader
+    try:
+        import easyocr
+    except Exception as e:
+        print(f"DEBUG: EasyOCR not available: {e}")
+        return None
+    try:
+        # Initialize with English language support
+        # Add more languages as needed: ['en', 'hi', 'mr', 'ta', etc.]
+        reader = easyocr.Reader(['en'], gpu=False)  # Use CPU for compatibility
+        _ocr_reader = reader
+        print("DEBUG: Loaded EasyOCR reader for text extraction.")
+        return _ocr_reader
+    except Exception as e:
+        print(f"DEBUG: Failed to initialize EasyOCR reader: {e}")
+        return None
+
+
+def extract_text_from_image(image_path, languages=['en']):
+    """
+    Extract text from image using EasyOCR.
+    Returns: (success: bool, extracted_text: str, raw_results: list)
+    """
+    reader = _load_ocr_reader()
+    if not reader:
+        return (False, "", [])
+    
+    try:
+        # Read text from image
+        results = reader.readtext(image_path)
+        
+        # Extract text strings and confidence scores
+        extracted_lines = []
+        all_text = []
+        
+        for (bbox, text, confidence) in results:
+            # Only include text with confidence > 0.3
+            if confidence > 0.3:
+                extracted_lines.append({
+                    'text': text,
+                    'confidence': confidence,
+                    'bbox': bbox
+                })
+                all_text.append(text)
+        
+        # Combine all extracted text
+        combined_text = ' '.join(all_text)
+        
+        print(f"DEBUG: OCR extracted {len(extracted_lines)} text segments from image")
+        print(f"DEBUG: Combined text: {combined_text[:200]}...")  # Print first 200 chars
+        
+        return (True, combined_text, extracted_lines)
+    except Exception as e:
+        print(f"DEBUG: OCR text extraction failed: {e}")
+        return (False, "", [])
+
+
+def suggest_item_name(extracted_text, max_suggestions=3):
+    """
+    Analyze extracted text and suggest possible item names.
+    Returns: list of suggested item names
+    """
+    if not extracted_text or not extracted_text.strip():
+        return []
+    
+    suggestions = []
+    text_lower = extracted_text.lower()
+    
+    # Common patterns for different item types
+    patterns = {
+        # Phone brands and models
+        'phone': ['iphone', 'samsung', 'xiaomi', 'redmi', 'oppo', 'vivo', 'oneplus', 'pixel', 'galaxy', 'mi ', 'realme', 'motorola', 'nokia'],
+        # Laptop/computer brands
+        'laptop': ['macbook', 'dell', 'hp', 'lenovo', 'asus', 'acer', 'thinkpad', 'latitude', 'inspiron'],
+        # ID cards
+        'id_card': ['student id', 'identity', 'id card', 'identification', 'college id', 'university'],
+        # Books
+        'book': ['isbn', 'edition', 'author', 'publisher', 'copyright'],
+        # Other items
+        'wallet': ['wallet', 'cardholder', 'purse'],
+        'watch': ['watch', 'time', 'clock', 'smartwatch', 'fitbit', 'garmin'],
+        'bottle': ['bottle', 'flask', 'tumbler', 'hydro'],
+        'charger': ['charger', 'adapter', 'power', 'usb-c', 'lightning'],
+    }
+    
+    # Check for ID card patterns
+    if any(keyword in text_lower for keyword in patterns['id_card']):
+        # Try to extract name from ID card
+        words = extracted_text.split()
+        # Look for capitalized words that might be names
+        name_candidates = [w for w in words if w and w[0].isupper() and len(w) > 2]
+        if name_candidates:
+            suggestions.append(f"Student ID Card - {' '.join(name_candidates[:2])}")
+        else:
+            suggestions.append("Student ID Card")
+    
+    # Check for phone patterns
+    phone_match = None
+    for keyword in patterns['phone']:
+        if keyword in text_lower:
+            # Try to extract model info
+            idx = text_lower.find(keyword)
+            surrounding = extracted_text[max(0, idx-10):min(len(extracted_text), idx+50)]
+            phone_match = surrounding.strip()
+            break
+    if phone_match:
+        suggestions.append(f"Mobile Phone - {phone_match}")
+    
+    # Check for laptop patterns
+    laptop_match = None
+    for keyword in patterns['laptop']:
+        if keyword in text_lower:
+            idx = text_lower.find(keyword)
+            surrounding = extracted_text[max(0, idx-10):min(len(extracted_text), idx+40)]
+            laptop_match = surrounding.strip()
+            break
+    if laptop_match:
+        suggestions.append(f"Laptop - {laptop_match}")
+    
+    # Check for book patterns
+    if any(keyword in text_lower for keyword in patterns['book']):
+        # Try to find title (usually the longest capitalized phrase)
+        words = extracted_text.split()
+        title_words = []
+        for w in words:
+            if w and (w[0].isupper() or w.isupper()) and len(w) > 2:
+                title_words.append(w)
+            elif title_words:
+                break  # Stop at first non-capitalized word after finding title
+        if title_words:
+            suggestions.append(f"Book - {' '.join(title_words[:5])}")
+        else:
+            suggestions.append("Book")
+    
+    # Check for other items
+    for item_type, keywords in patterns.items():
+        if item_type not in ['phone', 'laptop', 'id_card', 'book']:
+            if any(keyword in text_lower for keyword in keywords):
+                suggestions.append(item_type.replace('_', ' ').title())
+    
+    # If no specific patterns matched, extract most prominent text
+    if not suggestions and extracted_text:
+        # Get the longest sequence of capitalized words
+        words = extracted_text.split()
+        longest_seq = []
+        current_seq = []
+        for w in words:
+            if w and len(w) > 2 and (w[0].isupper() or w.isupper()):
+                current_seq.append(w)
+            else:
+                if len(current_seq) > len(longest_seq):
+                    longest_seq = current_seq
+                current_seq = []
+        if len(current_seq) > len(longest_seq):
+            longest_seq = current_seq
+        
+        if longest_seq:
+            suggestions.append(' '.join(longest_seq[:4]))
+    
+    # Return top suggestions
+    return suggestions[:max_suggestions]
+
 
 # Mapping from common keywords to COCO labels we expect to see in an image
 # For many college items COCO doesn't have an exact class; those will use stricter heuristics.
@@ -629,6 +906,200 @@ def verify_protected_image(item_name, file_path, score_threshold=0.3, min_size=1
         # In case of unexpected errors, be permissive rather than blocking users
         return (True, 'Unable to verify image server-side; please ensure the uploaded image clearly shows the item.')
 
+
+def cross_verify_item(item_name, file_path, extracted_text=None):
+    """
+    Cross-verify item name against multiple analysis methods:
+    1. OCR extracted text (fuzzy matching)
+    2. YOLO object detection
+    3. CLIP semantic similarity
+    
+    Returns: (verified: bool, confidence_score: float, details: dict)
+    """
+    import json
+    from difflib import SequenceMatcher
+    
+    details = {
+        'ocr_match': None,
+        'yolo_match': None,
+        'clip_match': None,
+        'ocr_score': 0.0,
+        'yolo_score': 0.0,
+        'clip_score': 0.0,
+        'overall_confidence': 0.0,
+        'verification_method': 'multi-modal'
+    }
+    
+    item_name_lower = (item_name or '').lower().strip()
+    if not item_name_lower:
+        return (False, 0.0, details)
+    
+    # 1. OCR Text Matching (if text was extracted)
+    ocr_weight = 0.3
+    if extracted_text and extracted_text.strip():
+        extracted_lower = extracted_text.lower()
+        
+        # Direct substring match
+        if item_name_lower in extracted_lower or extracted_lower in item_name_lower:
+            details['ocr_score'] = 1.0
+            details['ocr_match'] = 'direct_match'
+        else:
+            # Fuzzy matching for typos/OCR errors
+            # Split into words and find best match
+            item_words = item_name_lower.split()
+            extracted_words = extracted_lower.split()
+            
+            max_similarity = 0.0
+            for item_word in item_words:
+                if len(item_word) < 3:
+                    continue  # Skip very short words
+                for extracted_word in extracted_words:
+                    similarity = SequenceMatcher(None, item_word, extracted_word).ratio()
+                    max_similarity = max(max_similarity, similarity)
+            
+            details['ocr_score'] = max_similarity
+            details['ocr_match'] = f'fuzzy_match ({max_similarity:.2f})'
+        
+        print(f"DEBUG: OCR verification - Score: {details['ocr_score']:.2f}, Match: {details['ocr_match']}")
+    else:
+        details['ocr_match'] = 'no_text_extracted'
+        print("DEBUG: OCR verification skipped - no text extracted")
+    
+    # 2. YOLO Object Detection Matching
+    yolo_weight = 0.35
+    try:
+        yolo_detections = detect_with_yolo(file_path)
+        if yolo_detections:
+            # Check if any YOLO detection matches item name
+            best_yolo_score = 0.0
+            best_yolo_label = None
+            
+            for detection in yolo_detections:
+                label = detection['label'].lower()
+                score = detection['score']
+                
+                # Check for keyword matches from item name
+                item_keywords = item_name_lower.replace('-', ' ').replace('/', ' ').split()
+                for keyword in item_keywords:
+                    if len(keyword) < 3:
+                        continue
+                    if keyword in label or label in keyword:
+                        if score > best_yolo_score:
+                            best_yolo_score = score
+                            best_yolo_label = label
+            
+            details['yolo_score'] = best_yolo_score
+            details['yolo_match'] = best_yolo_label if best_yolo_label else 'no_match'
+            details['yolo_detections'] = [{'label': d['label'], 'score': d['score']} for d in yolo_detections[:3]]
+            
+            print(f"DEBUG: YOLO verification - Score: {details['yolo_score']:.2f}, Best match: {best_yolo_label}")
+        else:
+            details['yolo_match'] = 'no_detections'
+            print("DEBUG: YOLO verification - no detections")
+    except Exception as e:
+        details['yolo_match'] = f'error: {str(e)[:50]}'
+        print(f"DEBUG: YOLO verification error: {e}")
+    
+    # 3. CLIP Semantic Similarity Matching
+    clip_weight = 0.35
+    try:
+        if app.config.get('USE_CLIP_VERIFICATION', True):
+            clip_ok, clip_info, clip_best, clip_similarity = clip_verify(item_name, file_path)
+            
+            if clip_ok is not None and clip_similarity is not None:
+                details['clip_score'] = clip_similarity
+                details['clip_match'] = clip_best
+                details['clip_info'] = clip_info
+                
+                print(f"DEBUG: CLIP verification - Score: {details['clip_score']:.2f}, Best match: {clip_best}")
+            else:
+                details['clip_match'] = 'unavailable'
+                print("DEBUG: CLIP verification unavailable")
+        else:
+            details['clip_match'] = 'disabled'
+    except Exception as e:
+        details['clip_match'] = f'error: {str(e)[:50]}'
+        print(f"DEBUG: CLIP verification error: {e}")
+    
+    
+    # Calculate overall confidence score (weighted average)
+    total_weight = 0.0
+    weighted_sum = 0.0
+    
+    # Add penalty for conflicts
+    conflict_penalty = 0.0
+    
+    # Check for YOLO conflicts
+    if details.get('yolo_detections'):
+        detected_objects = [d['label'].lower() for d in details['yolo_detections']]
+        
+        # Define object categories for conflict detection
+        object_categories = {
+            'phone': ['phone', 'cell', 'mobile', 'smartphone', 'iphone', 'android'],
+            'laptop': ['laptop', 'computer', 'notebook', 'macbook'],
+            'bag': ['bag', 'backpack', 'handbag', 'purse', 'suitcase', 'luggage'],
+            'wallet': ['wallet', 'purse'],
+            'watch': ['watch', 'clock', 'wristwatch'],
+            'keys': ['keys', 'key'],
+            'card': ['card', 'id', 'license'],
+            'book': ['book', 'notebook', 'textbook']
+        }
+        
+        # Determine claimed category
+        claimed_category = None
+        for category, keywords in object_categories.items():
+            if any(kw in item_name_lower for kw in keywords):
+                claimed_category = category
+                break
+        
+        # Check if detected objects conflict with claimed category
+        if claimed_category:
+            detected_category = None
+            for obj in detected_objects:
+                for category, keywords in object_categories.items():
+                    if category != claimed_category and any(kw in obj for kw in keywords):
+                        detected_category = category
+                        conflict_penalty = 0.7  # Heavy penalty for mismatched category
+                        details['conflict'] = f'Claimed {claimed_category} but detected {category}'
+                        print(f"DEBUG: CONFLICT DETECTED - Claimed: {claimed_category}, Detected: {category}")
+                        break
+                if detected_category:
+                    break
+    
+    if details['ocr_score'] > 0:
+        weighted_sum += details['ocr_score'] * ocr_weight
+        total_weight += ocr_weight
+    
+    if details['yolo_score'] > 0:
+        weighted_sum += details['yolo_score'] * yolo_weight
+        total_weight += yolo_weight
+    
+    if details['clip_score'] > 0:
+        weighted_sum += details['clip_score'] * clip_weight
+        total_weight += clip_weight
+    
+    # Calculate final confidence
+    if total_weight > 0:
+        overall_confidence = weighted_sum / total_weight
+    else:
+        # No detection methods returned scores - use minimum confidence
+        overall_confidence = 0.1
+    
+    # Apply conflict penalty
+    overall_confidence = max(0.0, overall_confidence - conflict_penalty)
+    
+    details['overall_confidence'] = overall_confidence
+    details['conflict_penalty'] = conflict_penalty
+    
+    # Determine if verified (confidence threshold)
+    verification_threshold = 0.4  # 40% confidence minimum
+    verified = overall_confidence >= verification_threshold
+    
+    print(f"DEBUG: Cross-verification complete - Confidence: {overall_confidence:.2f}, Verified: {verified}, Conflict Penalty: {conflict_penalty}")
+    
+    return (verified, overall_confidence, details)
+
+
 # --- Models (Object-Relational Mapping) ---
 # IMPORTANT: Item model is defined BEFORE User model to resolve
 # "forward reference" issues for foreign_keys in User's relationships.
@@ -647,6 +1118,11 @@ class Item(db.Model):
     reported_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     deleted_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Can be null if not deleted
     deleted_at = db.Column(db.DateTime, nullable=True) # Timestamp when deleted/archived
+
+    # OCR and verification fields (for found items with images)
+    ocr_extracted_text = db.Column(db.Text, nullable=True) # Text extracted from image via OCR
+    verification_score = db.Column(db.Float, nullable=True) # Cross-verification confidence (0.0-1.0)
+    verification_details = db.Column(db.Text, nullable=True) # JSON string with detailed verification results
 
     def __repr__(self):
         # Defensive check for reporter existence before accessing .full_name
@@ -680,10 +1156,29 @@ class User(db.Model, UserMixin):
     )
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        # Hash using passlib context (argon2 preferred)
+        self.password_hash = pwd_context.hash(password)
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        # Try passlib verification first (supports argon2 and pbkdf2_sha256)
+        try:
+            verified = pwd_context.verify(password, self.password_hash)
+        except Exception:
+            # Fallback to werkzeug's check for legacy formats
+            try:
+                verified = check_password_hash(self.password_hash, password)
+            except Exception:
+                return False
+        if verified:
+            # Upgrade hash if the current hash uses a deprecated or weaker algorithm
+            try:
+                if pwd_context.needs_update(self.password_hash):
+                    self.password_hash = pwd_context.hash(password)
+                    db.session.add(self)
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+        return verified
 
     def is_admin(self):
         return self.role == 'admin'
@@ -940,7 +1435,7 @@ def report_lost():
         flash('Your lost item report has been submitted!', 'success')
         print(f"DEBUG: Lost item reported by {current_user.registration_no}: {item.item_name}")
         return redirect(url_for('items'))
-    return render_template('report_item.html', title='Report Lost Item', form=form, item_type='Lost')
+    return render_template('report_item_modern.html', title='Report Lost Item', form=form, item_type='Lost', protected_keywords=PROTECTED_KEYWORDS)
 
 @app.route("/report_found", methods=['GET', 'POST'])
 @login_required
@@ -1061,10 +1556,73 @@ def report_found():
                         return redirect(request.url)
                     else:
                         print(f"DEBUG: Image verification passed for item '{form.item_name.data}': {info}")
+                
+                # NEW: Extract text from image using OCR
+                ocr_text = ""
+                try:
+                    success, ocr_text, ocr_details = extract_text_from_image(file_path)
+                    if success and ocr_text:
+                        print(f"DEBUG: OCR extracted text: {ocr_text[:100]}...")
+                    else:
+                        print("DEBUG: No text extracted from image")
+                except Exception as e:
+                    print(f"DEBUG: OCR extraction error: {e}")
+                    ocr_text = ""
+                
+                # NEW: Cross-verify item name against image analysis
+                verification_score = 0.0
+                verification_details_dict = {}
+                try:
+                    verified, confidence, details = cross_verify_item(
+                        form.item_name.data, 
+                        file_path, 
+                        extracted_text=ocr_text
+                    )
+                    verification_score = confidence
+                    verification_details_dict = details
+                    print(f"DEBUG: Cross-verification - Confidence: {confidence:.2f}, Verified: {verified}")
+                    
+                    # Check for conflicts
+                    has_conflict = details.get('conflict_penalty', 0) > 0
+                    conflict_msg = details.get('conflict', '')
+                    
+                    # Reject extremely low confidence (likely mislabeled)
+                    if confidence < 0.2 or has_conflict:
+                        # Remove the saved file
+                        try:
+                            if os.path.exists(file_path):
+                                os.remove(file_path)
+                                print(f"DEBUG: Removed file due to low confidence/conflict: {file_path}")
+                        except Exception as e:
+                            print(f"DEBUG: Failed to remove file: {e}")
+                        
+                        # Show detailed error message
+                        if conflict_msg:
+                            error_msg = f'Item name does not match the image. {conflict_msg}. Please ensure the item name accurately describes what is in the photo.'
+                        else:
+                            error_msg = f'Very low AI confidence ({int(confidence*100)}%). The image does not appear to match the item name. Please verify you uploaded the correct photo and item name.'
+                        
+                        flash(error_msg, 'danger')
+                        return redirect(request.url)
+                    
+                    # Show verification feedback to user for successful submissions
+                    if confidence >= 0.7:
+                        flash(f'✅ High confidence match ({int(confidence*100)}%) - Item verified!', 'success')
+                    elif confidence >= 0.4:
+                        flash(f'⚠️ Medium confidence ({int(confidence*100)}%) - Please verify the details are correct.', 'warning')
+                    elif confidence >= 0.2:
+                        flash(f'⚠️ Low confidence match ({int(confidence*100)}%) - Please double-check item name and image match.', 'warning')
+                        
+                except Exception as e:
+                    print(f"DEBUG: Cross-verification error: {e}")
             except Exception as e:
                 print(f"ERROR: Failed to save file '{filename}' to '{file_path}': {e}")
                 flash(f"Error saving image: {e}. Check server disk space or permissions.", 'danger')
                 return redirect(request.url)
+
+            # Store verification details as JSON
+            import json
+            verification_json = json.dumps(verification_details_dict) if verification_details_dict else None
 
             item = Item(item_name=form.item_name.data,
                         description=form.description.data,
@@ -1072,6 +1630,9 @@ def report_found():
                         location=form.location.data,
                         status='Found',
                         image_filename=filename,
+                        ocr_extracted_text=ocr_text,
+                        verification_score=verification_score,
+                        verification_details=verification_json,
                         reporter=current_user)
             db.session.add(item)
             db.session.commit()
@@ -1107,7 +1668,7 @@ def report_found():
             return redirect(url_for('items'))
         else:
             flash(f"Invalid file type. Allowed: {', '.join(app.config['ALLOWED_EXTENSIONS'])}", 'danger')
-    return render_template('report_item.html', title='Report Found Item', form=form, item_type='Found')
+    return render_template('report_item_modern.html', title='Report Found Item', form=form, item_type='Found', protected_keywords=PROTECTED_KEYWORDS)
 
 @app.route("/items")
 @login_required
@@ -1157,7 +1718,7 @@ def item_detail(item_id):
     # Load messages for this item (most recent last)
     messages = Message.query.filter_by(item_id=item.id).order_by(Message.timestamp.asc()).all()
     print(f"DEBUG: Displaying details for item ID {item_id}: {item.item_name} with {len(messages)} messages")
-    return render_template('item_detail.html', title='Item Details', item=item, form=form, messages=messages)
+    return render_template('item_detail_modern.html', title='Item Details', item=item, form=form, messages=messages)
 
 
 @app.route("/item/<int:item_id>/delete", methods=['POST'])
@@ -1371,6 +1932,70 @@ def profile():
     return render_template('profile.html', title='Your Profile', user=user, reports=recent_reports,
                            progress_pct=progress_pct, points_to_next=points_to_next, next_level=next_level)
 
+
+# =====================================================
+# API Endpoints for AJAX Requests
+# =====================================================
+
+@app.route('/api/extract_text', methods=['POST'])
+@login_required
+def api_extract_text():
+    """
+    API endpoint to extract text from uploaded image using OCR.
+    Returns JSON with extracted text and item name suggestions.
+    """
+    import json
+    import tempfile
+    
+    if 'image' not in request.files:
+        return json.dumps({'success': False, 'message': 'No image file provided'}), 400, {'ContentType': 'application/json'}
+    
+    file = request.files['image']
+    if file.filename == '':
+        return json.dumps({'success': False, 'message': 'No file selected'}), 400, {'ContentType': 'application/json'}
+    
+    if not allowed_file(file.filename):
+        return json.dumps({'success': False, 'message': 'Invalid file type. Please upload PNG, JPG, or GIF'}), 400, {'ContentType': 'application/json'}
+    
+    try:
+        # Save to temporary file for processing
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+            temp_path = temp_file.name
+            file.save(temp_path)
+        
+        # Extract text using OCR
+        success, extracted_text, ocr_details = extract_text_from_image(temp_path)
+        
+        # Clean up temp file
+        try:
+            os.remove(temp_path)
+        except:
+            pass
+        
+        if not success:
+            return json.dumps({
+                'success': False, 
+                'message': 'OCR extraction failed. Image may not contain readable text.'
+            }),200, {'ContentType': 'application/json'}
+        
+        # Generate item name suggestions from extracted text
+        suggestions = suggest_item_name(extracted_text)
+        
+        return json.dumps({
+            'success': True,
+            'extracted_text': extracted_text,
+            'suggestions': suggestions,
+            'ocr_details': ocr_details
+        }), 200, {'ContentType': 'application/json'}
+        
+    except Exception as e:
+        print(f"ERROR: API extract_text failed: {e}")
+        return json.dumps({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500, {'ContentType': 'application/json'}
+
+
 if __name__ == '__main__':
     with app.app_context():
         # Ensure the upload directory exists at startup too, for robustness
@@ -1383,6 +2008,40 @@ if __name__ == '__main__':
                 print("Please check file system permissions for your project folder.")
 
         db.create_all() # Creates database tables based on your models
+
+        # Ensure any newly added columns exist in the SQLite 'item' table (useful when adding features)
+        def ensure_item_columns():
+            """Add missing columns to the 'item' table for older databases.
+            This is a lightweight migration helper that runs only when needed.
+            """
+            conn = None
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                cur = conn.cursor()
+                cur.execute("PRAGMA table_info('item')")
+                existing = set(r[1] for r in cur.fetchall())
+                # Desired columns mapped to their SQL definitions
+                desired = {
+                    'ocr_extracted_text': 'TEXT NULL',
+                    'verification_score': 'REAL NULL',
+                    'verification_details': 'TEXT NULL'
+                }
+                for col, definition in desired.items():
+                    if col not in existing:
+                        try:
+                            sql = f"ALTER TABLE item ADD COLUMN {col} {definition};"
+                            cur.execute(sql)
+                            print(f"Startup DEBUG: Added missing column '{col}' to 'item' table.")
+                        except Exception as e:
+                            print(f"Startup ERROR: Failed to add column {col}: {e}")
+                conn.commit()
+            except Exception as e:
+                print(f"Startup ERROR: ensure_item_columns failed: {e}")
+            finally:
+                if conn:
+                    conn.close()
+
+        ensure_item_columns()
 
         # Create default admin and HOD users if they don't exist
         admin_exists = User.query.filter_by(registration_no='ADMIN001').first()

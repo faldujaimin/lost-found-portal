@@ -1,13 +1,267 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="jumbotron">
-        <h1 class="display-4">Welcome to the Lost & Found Portal!</h1>
-        <p class="lead">Helping students find their lost items and report found ones.</p>
-        <hr class="my-4">
-        <p>Login to report items, or browse the current list of lost and found articles.</p>
-        <a class="btn btn-primary btn-lg" href="{{ url_for('items') }}" role="button">View All Items</a>
-        {% if not current_user.is_authenticated %}
-            <a class="btn btn-success btn-lg" href="{{ url_for('register') }}" role="button">Register Now</a>
-        {% endif %}
+<div class="hero-section">
+    <div class="container hero-content">
+        <div class="hero-text">
+            <h1 class="hero-title">Lost & Found Portal</h1>
+            <p class="hero-subtitle">Helping students reconnect with their lost items through AI-powered matching</p>
+
+            <div class="hero-actions">
+                <a href="{{ url_for('items') }}" class="btn btn-lg"
+                    style="background: white; color: hsl(var(--primary)); border: none;">
+                    Browse Items
+                </a>
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('report_found') }}" class="btn btn-outline btn-lg">
+                    Report Found Item
+                </a>
+                {% else %}
+                <a href="{{ url_for('register') }}" class="btn btn-outline btn-lg">
+                    Get Started
+                </a>
+                {% endif %}
+            </div>
+        </div>
     </div>
+</div>
+
+<!-- Features Section -->
+<div class="container features-section">
+    <h2 class="section-title">How It Works</h2>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">
+                <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path>
+                </svg>
+            </div>
+            <h3 class="feature-title">Search & Browse</h3>
+            <p class="feature-description">Search through lost and found items with powerful filters and AI-powered
+                matching</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z">
+                    </path>
+                </svg>
+            </div>
+            <h3 class="feature-title">Upload & Verify</h3>
+            <p class="feature-description">Upload images with OCR text extraction and AI verification for accurate
+                matching</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z">
+                    </path>
+                </svg>
+            </div>
+            <h3 class="feature-title">Connect & Claim</h3>
+            <p class="feature-description">Communicate with finders through discussions and arrange safe item handover
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Section (if authenticated) -->
+{% if current_user.is_authenticated %}
+<div class="container stats-section">
+    <div class="stats-banner">
+        <div class="stat-box">
+            <div class="stat-number">-</div>
+            <div class="stat-label">Active Items</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">-</div>
+            <div class="stat-label">Items Reunited</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">{{ current_user.points or 0 }}</div>
+            <div class="stat-label">Your Points</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">{{ current_user.level }}</div>
+            <div class="stat-label">Your Level</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+    /* Hero Section */
+    .hero-section {
+        background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(222, 47%, 15%) 100%);
+        color: white;
+        padding: 6rem 0 4rem;
+        margin-bottom: 4rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="rgba(255,255,255,0.1)" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,133.3C672,139,768,181,864,181.3C960,181,1056,139,1152,128C1248,117,1344,139,1392,149.3L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>');
+        background-size: cover;
+        background-position: bottom;
+        opacity: 0.3;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        max-width: 800px;
+    }
+
+    .hero-title {
+        font-size: 3.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        line-height: 1.2;
+        color: #ffffff !important;
+    }
+
+    .hero-subtitle {
+        font-size: 1.25rem;
+        opacity: 0.95;
+        margin-bottom: 2.5rem;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .hero-section .btn-outline {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: white;
+        color: white;
+    }
+
+    .hero-section .btn-outline:hover {
+        background: white;
+        color: hsl(var(--primary));
+    }
+
+    /* Features Section */
+    .features-section {
+        margin-bottom: 4rem;
+    }
+
+    .section-title {
+        text-align: center;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 3rem;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+    }
+
+    .feature-card {
+        text-align: center;
+        padding: 2rem;
+        border-radius: var(--radius);
+        transition: var(--transition-base);
+    }
+
+    .feature-card:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .feature-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1.5rem;
+        background: hsl(var(--primary) / 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: hsl(var(--primary));
+    }
+
+    .feature-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+    }
+
+    .feature-description {
+        color: hsl(var(--muted-foreground));
+        line-height: 1.6;
+    }
+
+    /* Stats Section */
+    .stats-section {
+        margin-bottom: 4rem;
+    }
+
+    .stats-banner {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        padding: 2rem;
+        background: hsl(var(--card));
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .stat-box {
+        text-align: center;
+        padding: 1.5rem;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: hsl(var(--primary));
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: hsl(var(--muted-foreground));
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 2.5rem;
+        }
+
+        .hero-subtitle {
+            font-size: 1rem;
+        }
+
+        .features-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .stats-banner {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+
 {% endblock content %}

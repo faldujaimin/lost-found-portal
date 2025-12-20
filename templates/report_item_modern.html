@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
+
+<div class="container {% if item_type == 'Lost' %}desktop-sidebar-layout{% endif %}"
+    style="max-width: 1200px; margin-top: 2rem;">
+    <div class="card">
+        <div class="card-header border-b border-border/50 pb-4 mb-4">
+            <h2 class="card-title text-2xl">{{ title }}</h2>
+            <p class="card-description">
+                {% if item_type == 'Found' %}
+                Upload a photo to help AI identify the item
+                {% else %}
+                Provide details about the lost item
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="card-content">
+            <form method="POST" action="" enctype="multipart/form-data" id="reportForm">
+                {{ form.hidden_tag() }}
+
+                <div class="report-layout {% if item_type == 'Found' %}desktop-split{% endif %}">
+
+                    {% if item_type == 'Found' %}
+                    <!-- LEFT COLUMN: Image Upload (Sticky) -->
+                    <div class="layout-sidebar">
+                        <div class="sticky-wrapper">
+                            <div class="form-group pb-4 border-b md:border-b-0">
+                                <label class="form-label mb-2 block">
+                                    {{ form.image.label.text }} <span class="text-destructive">*</span>
+                                </label>
+
+                                <div class="image-preview relative group" id="imagePreview"
+                                    style="min-height: 300px; background: hsl(var(--muted)/0.3);">
+                                    <div
+                                        class="image-preview-placeholder absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                                        <div
+                                            class="p-4 rounded-full bg-background shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                                            <svg width="32" height="32" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24" class="text-primary">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                                </path>
+                                            </svg>
+                                        </div>
+                                        <p class="font-medium">Click to upload photo</p>
+                                        <p class="text-xs text-muted mt-1">Supports JPG, PNG (Max 16MB)</p>
+                                    </div>
+                                </div>
+
+                                {{ form.image(class="hidden", id="image", accept="image/*", style="display:none") }}
+                                {% if form.image.errors %}
+                                <div class="form-error text-center mt-2">{{ form.image.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- RIGHT COLUMN: Form Fields -->
+                    <div class="layout-main">
+                        <!-- Item Name -->
+                        <div class="form-group">
+                            <label class="form-label" for="item_name">
+                                {{ form.item_name.label.text }} <span class="text-destructive">*</span>
+                            </label>
+                            {{ form.item_name(class="form-input text-lg", id="item_name", placeholder="e.g. iPhone 13,
+                            Blue Wallet") }}
+                            {% if form.item_name.errors %}
+                            <div class="form-error">{{ form.item_name.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Description -->
+                        <div class="form-group">
+                            <label class="form-label" for="description">
+                                {{ form.description.label.text }} <span class="text-destructive">*</span>
+                            </label>
+                            {{ form.description(class="form-textarea", id="description", rows="5", placeholder="Describe
+                            color, brand, distinct marks...") }}
+                            {% if form.description.errors %}
+                            <div class="form-error">{{ form.description.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Grid for Date & Location -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    {% if item_type == 'Lost' %}Date Lost{% else %}Date Found{% endif %} <span
+                                        class="text-destructive">*</span>
+                                </label>
+                                {% if item_type == 'Lost' %}
+                                {{ form.lost_date(class="form-input", type="date") }}
+                                {% else %}
+                                {{ form.found_date(class="form-input", type="date") }}
+                                {% endif %}
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="location">
+                                    {{ form.location.label.text }} <span class="text-destructive">*</span>
+                                </label>
+                                {{ form.location(class="form-input", id="location", placeholder="e.g. Library") }}
+                            </div>
+                        </div>
+
+                        {% if item_type == 'Found' %}
+                        <!-- Banner & Confirmation -->
+                        <div id="confirmation-banner" class="alert alert-warning mt-2" style="display:none;">
+                            <strong>Protected Item Detected</strong>
+                            <p class="text-sm">Please verify the details carefully.</p>
+                        </div>
+                        <div class="form-group" id="phone-confirm-group" style="display:none;">
+                            <label
+                                class="flex items-center gap-3 p-3 border rounded bg-muted/20 cursor-pointer hover:bg-muted/50 transition-colors">
+                                {{ form.phone_confirm(class="w-5 h-5", id="phone_confirm") }}
+                                <span class="font-medium">I confirm this photo shows the item reported</span>
+                            </label>
+                        </div>
+                        {% endif %}
+
+                        <!-- Actions -->
+                        <div class="flex gap-4 mt-8 pt-4 border-t border-border/50">
+                            {{ form.submit(class="btn btn-primary btn-lg flex-1") }}
+                            <a href="{{ url_for('items') }}" class="btn btn-outline btn-lg">Cancel</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="card tips-card mt-6">
+        <div class="card-header">
+            <h3 class="card-title text-lg">Tips for Better Results</h3>
+        </div>
+        <div class="card-content">
+            <ul class="text-sm text-muted" style="list-style: none; padding-left: 0;">
+                <li class="mb-2">Use clear, well-lit photos</li>
+                <li class="mb-2">Include visible text (ID cards, product labels, etc.)</li>
+                <li class="mb-2">Take close-up shots showing distinctive features</li>
+                <li class="mb-2">Provide detailed descriptions</li>
+                {% if item_type == 'Found' %}
+                <li class="mb-2">AI will analyze your image and suggest item names</li>
+                <li class="mb-2">Text extraction works best with ID cards, books, and labeled items</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Protected Item Detection Script -->
+<script>
+    const PROTECTED_KEYWORDS = {{ protected_keywords| tojson if protected_keywords else '[]' | safe }};
+
+    // Monitor item name input for protected keywords
+    const itemNameInput = document.getElementById('item_name');
+    const confirmBanner = document.getElementById('confirmation-banner');
+    const confirmGroup = document.getElementById('phone-confirm-group');
+
+    if (itemNameInput && confirmBanner && confirmGroup) {
+        itemNameInput.addEventListener('input', function () {
+            const value = this.value.toLowerCase();
+            const isProtected = PROTECTED_KEYWORDS.some(keyword => value.includes(keyword.toLowerCase()));
+
+            if (isProtected) {
+                confirmBanner.style.display = 'block';
+                confirmGroup.style.display = 'block';
+            } else {
+                confirmBanner.style.display = 'none';
+                confirmGroup.style.display = 'none';
+            }
+        });
+    }
+</script>
+
+<style>
+    /* Make image preview clickable */
+    .image-preview {
+        cursor: pointer;
+    }
+
+    .image-preview:hover {
+        border-color: hsl(var(--primary));
+    }
+
+    /* Smooth transitions */
+    .form-input:focus,
+    .form-textarea:focus {
+        transform: translateY(-1px);
+    }
+
+    /* Custom checkbox styling */
+    input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: hsl(var(--primary));
+    }
+
+    /* Desktop Responsive Layout */
+    @media (min-width: 768px) {
+        .desktop-split {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .sticky-wrapper {
+            position: sticky;
+            top: 6rem;
+            /* Account for navbar */
+        }
+    }
+
+    /* Lost Report Sidebar Layout */
+    @media (min-width: 1024px) {
+        .desktop-sidebar-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .desktop-sidebar-layout .tips-card {
+            margin-top: 0 !important;
+            position: sticky;
+            top: 6rem;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Only run on found item reports
+        if (!document.getElementById('image')) return;
+
+        const fileInput = document.getElementById('image');
+        const itemNameInput = document.getElementById('item_name');
+
+        // Create feedback elements
+        const validationFeedback = document.createElement('div');
+        validationFeedback.className = 'mt-2 text-sm font-medium';
+        itemNameInput.parentNode.appendChild(validationFeedback);
+
+        let detectedObject = null;
+        let aiConfidence = 0;
+
+        // Create AI Feedback Area
+        const aiFeedbackArea = document.createElement('div');
+        aiFeedbackArea.className = 'mt-3 p-3 bg-muted rounded-lg hidden border border-border';
+        aiFeedbackArea.id = 'ai-feedback-area';
+
+        // Insert after image preview
+        const imagePreview = document.querySelector('.image-preview');
+        if (imagePreview) {
+            imagePreview.parentNode.insertBefore(aiFeedbackArea, imagePreview.nextSibling);
+
+            // Make preview clickable to trigger upload
+            imagePreview.addEventListener('click', () => fileInput.click());
+        }
+
+        // Handle File Selection
+        fileInput.addEventListener('change', async function (e) {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+
+                // 1. Show Image Preview
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    if (imagePreview) {
+                        imagePreview.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: contain; max-height: 300px; border-radius: 8px;">`;
+                        imagePreview.classList.remove('image-preview-placeholder');
+                    }
+                }
+                reader.readAsDataURL(file);
+
+                // Show loading state for AI
+                aiFeedbackArea.classList.remove('hidden');
+                aiFeedbackArea.innerHTML = `
+                    <div class="flex items-center gap-2 text-muted-foreground animate-pulse">
+                        <div class="spinner"></div>
+                        <span>Analyzing image contents...</span>
+                    </div>
+                `;
+
+                // Create FormData
+                const formData = new FormData();
+                formData.append('image', file);
+
+                try {
+                    const response = await fetch('/api/analyze_image', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (data.best_guess) {
+                        detectedObject = data.best_guess.toLowerCase();
+                        aiConfidence = data.confidence;
+
+                        // Show detection result
+                        aiFeedbackArea.innerHTML = `
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <span class="text-xs font-semibold uppercase text-muted-foreground tracking-wider">AI Detected Object</span>
+                                    <div class="font-medium text-foreground flex items-center gap-2 mt-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+                                        <span class="capitalize">${data.best_guess}</span>
+                                        <span class="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">${Math.round(data.confidence * 100)}%</span>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline text-xs" id="use-suggestion">
+                                    Use Suggestion
+                                </button>
+                            </div>
+                        `;
+
+                        // Add click handler for suggestion
+                        document.getElementById('use-suggestion').addEventListener('click', function () {
+                            itemNameInput.value = data.best_guess;
+                            itemNameInput.focus();
+                            validateInput(); // Trigger validation
+                        });
+
+                        // Validate immediately if name already entered
+                        if (itemNameInput.value) {
+                            validateInput();
+                        }
+                    } else {
+                        aiFeedbackArea.innerHTML = `<span class="text-sm text-muted-foreground">Could not clearly identify the object. Please describe it manually.</span>`;
+                    }
+                } catch (err) {
+                    console.error('Analysis failed:', err);
+                    aiFeedbackArea.innerHTML = `<span class="text-sm text-destructive">Image analysis failed. Please try again or skip.</span>`;
+                }
+            }
+        });
+
+        // Real-time validation
+        itemNameInput.addEventListener('input', validateInput);
+
+        function validateInput() {
+            if (!detectedObject || !itemNameInput.value) {
+                validationFeedback.innerHTML = '';
+                itemNameInput.classList.remove('border-destructive', 'border-success');
+                return;
+            }
+
+            const userInput = itemNameInput.value.toLowerCase();
+
+            // define categories for conflict checking
+            const categories = {
+                'phone': ['phone', 'mobile', 'cell', 'iphone', 'android', 'smartphone'],
+                'laptop': ['laptop', 'computer', 'macbook', 'pc'],
+                'bag': ['bag', 'backpack', 'luggage', 'suitcase', 'handbag', 'purse'],
+                'watch': ['watch', 'clock'],
+                'wallet': ['wallet', 'purse', 'billfold'],
+                'keys': ['key', 'keys', 'keychain'],
+                'bottle': ['bottle', 'flask', 'water']
+            };
+
+            let userCategory = null;
+            let detectedCategory = null;
+
+            // Find categories
+            for (const [cat, terms] of Object.entries(categories)) {
+                if (terms.some(t => userInput.includes(t))) userCategory = cat;
+                if (terms.some(t => detectedObject.includes(t))) detectedCategory = cat;
+            }
+
+            // Check for direct conflict
+            let hasConflict = false;
+            // Only flag conflict if both are categorized and different
+            if (userCategory && detectedCategory && userCategory !== detectedCategory) {
+                hasConflict = true;
+            }
+
+            // Check for match
+            const isMatch = detectedObject.includes(userInput) || userInput.includes(detectedObject) ||
+                (userCategory && detectedCategory && userCategory === detectedCategory);
+
+            if (hasConflict) {
+                validationFeedback.innerHTML = `
+                    <div class="text-destructive flex items-center gap-1 mt-1 fade-in">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                        Mismatch: Image looks like <strong>${detectedObject}</strong>, not ${userInput}.
+                    </div>
+                `;
+                itemNameInput.classList.add('border-destructive');
+                itemNameInput.classList.remove('border-success');
+            } else if (isMatch || (detectedObject && userInput.length > 2 && detectedObject.includes(userInput))) {
+                validationFeedback.innerHTML = `
+                    <div class="text-success flex items-center gap-1 mt-1 fade-in">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        Matches detected object!
+                    </div>
+                `;
+                itemNameInput.classList.add('border-success');
+                itemNameInput.classList.remove('border-destructive');
+            } else {
+                // Neutral state
+                validationFeedback.innerHTML = '';
+                itemNameInput.classList.remove('border-destructive', 'border-success');
+            }
+        }
+    });
+</script>
+
+{% endblock content %}

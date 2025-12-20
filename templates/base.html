@@ -1,105 +1,422 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lost & Found Portal - {{ title }}</title>
-    <!-- Link Bootstrap CSS for quick styling -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Link your custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-    <!-- Full-page decorative background (behind all content) -->
-    <div class="site-bg" aria-hidden="true" style="background-image: url('{{ url_for('static', filename='bg.jpg') }}');"></div>
-    <nav class="navbar navbar-expand-lg">
-        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('home') }}">
-            <img class="nav-logo" src="{{ url_for('static', filename='l&f.png') }}" alt="Lost & Found logo" style="height:34px; width:auto; margin-right:8px;" />
-            <span style="font-weight:700;">Lost & Found</span>
-        </a>
-        
-        <!-- *** CRITICAL FIX: ADDED NAVBAR TOGGLER BUTTON *** -->
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <!-- animated hamburger -->
-            <span class="toggler-icon" aria-hidden="true">
-                <span></span>
-                <span></span>
-                <span></span>
-            </span>
-        </button>
-        <!-- *** END CRITICAL FIX *** -->
 
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav mr-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('items') }}">View Items</a>
-                </li>
-                {% if current_user.is_authenticated %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('report_lost') }}">Report Lost</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('report_found') }}">Report Found</a>
-                </li>
-                {% if current_user.is_admin() or current_user.is_hod() %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('item_history') }}">History</a>
-                </li>
-                {% endif %}
-                {% endif %}
-            </ul>
-            <!-- Search form -->
-            <form class="form-inline my-2 my-lg-0" method="get" action="{{ url_for('items') }}">
-                <input class="form-control mr-sm-2" type="search" placeholder="Search items..." aria-label="Search" name="q" value="{{ request.args.get('q','') }}">
-                <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
-            </form>
-            <!-- Theme toggle -->
-            <div class="ml-2 d-flex align-items-center">
-                <button id="theme-toggle" class="btn btn-sm btn-outline" aria-label="Toggle theme" title="Toggle theme">
-                    <span class="theme-icon" aria-hidden="true">🌙</span>
-                </button>
+    <!-- Modern CSS with Variables -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='l&f.png') }}">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Global Styles */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Navbar Styling */
+        .navbar {
+            background: hsl(var(--card));
+            border-bottom: 1px solid hsl(var(--border));
+            padding: 1rem 0;
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: hsl(var(--foreground));
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+
+        .navbar-brand img {
+            height: 36px;
+            width: auto;
+        }
+
+        .navbar-menu {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            flex: 1;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 0.5rem;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .nav-link {
+            padding: 0.5rem 0.875rem;
+            border-radius: var(--radius);
+            text-decoration: none;
+            color: hsl(var(--muted-foreground));
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: var(--transition-fast);
+        }
+
+        .nav-link:hover {
+            background: hsl(var(--accent));
+            color: hsl(var(--foreground));
+        }
+
+        .nav-link.active {
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+        }
+
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Search Form */
+        .search-form {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .search-form input {
+            width: 200px;
+        }
+
+        /* Theme Toggle Button */
+        .theme-toggle {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius);
+            border: 1px solid hsl(var(--border));
+            background: hsl(var(--background));
+            color: hsl(var(--foreground));
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            transition: var(--transition-base);
+        }
+
+        .theme-toggle:hover {
+            background: hsl(var(--accent));
+            border-color: hsl(var(--foreground));
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            padding: 2rem 0;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 2rem 0;
+            text-align: center;
+            border-top: 1px solid hsl(var(--border));
+            background: hsl(var(--card));
+        }
+
+        /* Flash Messages (Toast Style) */
+        .flash-messages {
+            position: fixed;
+            top: 5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        }
+
+        .flash-messages .alert {
+            pointer-events: auto;
+            min-width: 300px;
+            max-width: 400px;
+            padding: 1rem 1.25rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+            animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            background: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
+            border-left-width: 4px;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .flash-messages .alert-success {
+            border-left-color: hsl(var(--success));
+        }
+
+        .flash-messages .alert-error,
+        .flash-messages .alert-danger {
+            border-left-color: hsl(var(--destructive));
+        }
+
+        .flash-messages .alert-info {
+            border-left-color: hsl(var(--primary));
+        }
+
+        .flash-messages .alert-warning {
+            border-left-color: hsl(var(--warning));
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .mobile-menu-toggle span {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background: hsl(var(--foreground));
+            margin: 4px 0;
+            transition: var(--transition-fast);
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .navbar-menu {
+                position: fixed;
+                top: 73px;
+                left: 0;
+                right: 0;
+                background: hsl(var(--card));
+                border-bottom: 1px solid hsl(var(--border));
+                padding: 1rem;
+                display: none;
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+                box-shadow: var(--shadow-lg);
+            }
+
+            .navbar-menu.active {
+                display: flex;
+            }
+
+            .nav-links {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .navbar-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .search-form {
+                width: 100%;
+            }
+
+            .search-form input {
+                flex: 1;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a class="navbar-brand" href="{{ url_for('home') }}">
+                <img src="{{ url_for('static', filename='l&f.png') }}" alt="Lost & Found" />
+                <span>Lost & Found</span>
+            </a>
+
+            <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <div class="navbar-menu" id="navbarMenu">
+                <ul class="nav-links">
+                    <li><a class="nav-link" href="{{ url_for('items') }}">View Items</a></li>
+                    {% if current_user.is_authenticated %}
+                    <li><a class="nav-link" href="{{ url_for('report_lost') }}">Report Lost</a></li>
+                    <li><a class="nav-link" href="{{ url_for('report_found') }}">Report Found</a></li>
+                    {% if current_user.is_admin() or current_user.is_hod() %}
+                    <li><a class="nav-link" href="{{ url_for('item_history') }}">History</a></li>
+                    {% endif %}
+                    {% endif %}
+                </ul>
+
+                <div class="navbar-actions">
+                    <!-- Search Form -->
+                    <form class="search-form" method="get" action="{{ url_for('items') }}">
+                        <input class="form-input" type="search" placeholder="Search items..." name="q"
+                            value="{{ request.args.get('q','') }}">
+                        <button class="btn btn-primary btn-sm" type="submit">Search</button>
+                    </form>
+
+                    <!-- Theme Toggle -->
+                    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"
+                        title="Toggle dark mode">
+                        <span id="themeIcon">◐</span>
+                    </button>
+
+                    <!-- User Menu -->
+                    {% if current_user.is_authenticated %}
+                    <a class="btn btn-outline btn-sm" href="{{ url_for('profile') }}">{{ current_user.full_name
+                        }}</a>
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('logout') }}">Logout</a>
+                    {% else %}
+                    <a class="btn btn-outline btn-sm" href="{{ url_for('login') }}">Login</a>
+                    <a class="btn btn-primary btn-sm" href="{{ url_for('register') }}">Register</a>
+                    {% endif %}
+                </div>
             </div>
-            <ul class="navbar-nav">
-                {% if current_user.is_authenticated %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('profile') }}">Profile</a>
-                </li>
-                <li class="nav-item">
-                    <span class="nav-link">Welcome, {{ current_user.full_name }}! ({{ current_user.role.upper() }})</span>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
-                </li>
-                {% else %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('login') }}">Login</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('register') }}">Register</a>
-                </li>
-                {% endif %}
-            </ul>
         </div>
     </nav>
 
-    <!-- debug info removed from UI -->
-
-    <div class="container mt-4">
+    <!-- Flash Messages -->
+    <div class="flash-messages">
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
         {% endwith %}
-        {% block content %}{% endblock %}
     </div>
 
-    <!-- Bootstrap JS and Popper.js (jQuery is a dependency for Bootstrap 4) -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <!-- Link your custom JavaScript -->
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p class="text-sm text-muted">© {{ current_year or '2025' }} Lost & Found Portal — Powered by AI</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        // Mobile Menu Toggle
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const navbarMenu = document.getElementById('navbarMenu');
+
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', () => {
+                navbarMenu.classList.toggle('active');
+            });
+        }
+
+        // Dark Mode Toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const htmlElement = document.documentElement;
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        htmlElement.setAttribute('data-theme', savedTheme);
+        if (savedTheme === 'dark') {
+            htmlElement.classList.add('dark');
+            themeIcon.textContent = '☼';
+        }
+
+        // Toggle theme
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+            htmlElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+
+            if (newTheme === 'dark') {
+                htmlElement.classList.add('dark');
+                themeIcon.textContent = '☼';
+            } else {
+                htmlElement.classList.remove('dark');
+                themeIcon.textContent = '◐';
+            }
+        });
+
+        // Initialize Toast Auto-Close
+        const toasts = document.querySelectorAll('.flash-messages .alert');
+        toasts.forEach(toast => {
+            // Auto dismiss after 4 seconds
+            setTimeout(() => {
+                toast.style.transition = 'all 0.5s ease-out';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 500);
+            }, 4000);
+
+            // Click to dismiss immediately
+            toast.addEventListener('click', () => {
+                toast.style.transition = 'all 0.3s ease-out';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            });
+        });
+
+        // Highlight active nav link
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.nav-link').forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.classList.add('active');
+            }
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
 </body>
+
 </html>

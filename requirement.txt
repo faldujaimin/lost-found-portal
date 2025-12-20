@@ -12,3 +12,6 @@ transformers>=4.30.0
 # Optional object detection via YOLOv8 (Ultralytics)
 ultralytics>=8.0.0
 opencv-python>=4.7.0
+
+# OCR for text extraction from images (auto-fill feature)
+easyocr>=1.7.0

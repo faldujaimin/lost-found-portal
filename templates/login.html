@@ -1,37 +1,44 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow p-4 mt-5 themed-panel glass">
-                <h2 class="card-title text-center mb-4">{{ title }}</h2>
-                <form method="POST" action="">
-                    {{ form.hidden_tag() }}
-                    <div class="form-group">
-                        {{ form.registration_no.label(class="form-control-label") }}
-                        {{ form.registration_no(class="form-control", placeholder="Your Registration Number") }}
-                        {% if form.registration_no.errors %}
-                            {% for error in form.registration_no.errors %}
-                                <div class="alert alert-danger mt-1">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="form-group">
-                        {{ form.password.label(class="form-control-label") }}
-                        {{ form.password(class="form-control", placeholder="Your Password") }}
-                        {% if form.password.errors %}
-                            {% for error in form.password.errors %}
-                                <div class="alert alert-danger mt-1">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="form-group text-center">
-                        {{ form.submit(class="btn btn-primary btn-lg mt-3") }}
-                    </div>
-                    <small class="text-muted text-center d-block mt-3">
-                        Need an account? <a href="{{ url_for('register') }}">Register Here</a>
-                    </small>
-                </form>
-            </div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
+
+<div class="container" style="max-width: 450px; margin-top: 4rem;">
+    <div class="card">
+        <div class="card-header border-b border-border/50 pb-4 mb-4 text-center">
+            <h2 class="card-title text-2xl">{{ title }}</h2>
+            <p class="card-description">Welcome back to Lost & Found Portal</p>
+        </div>
+
+        <div class="card-content">
+            <form method="POST" action="">
+                {{ form.hidden_tag() }}
+
+                <div class="form-group mb-4">
+                    {{ form.registration_no.label(class="form-label") }}
+                    {{ form.registration_no(class="form-input", placeholder="e.g. 2023BTECH12345") }}
+                    {% if form.registration_no.errors %}
+                    <div class="text-destructive text-sm mt-1">{{ form.registration_no.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group mb-6">
+                    {{ form.password.label(class="form-label") }}
+                    {{ form.password(class="form-input", placeholder="Your Password") }}
+                    {% if form.password.errors %}
+                    <div class="text-destructive text-sm mt-1">{{ form.password.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    {{ form.submit(class="btn btn-primary w-full btn-lg") }}
+                </div>
+
+                <div class="mt-4 text-center text-sm text-muted">
+                    Need an account? <a href="{{ url_for('register') }}"
+                        class="text-primary font-medium hover:underline">Register Here</a>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 {% endblock content %}

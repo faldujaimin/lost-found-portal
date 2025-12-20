@@ -1,34 +1,310 @@
 {% extends "base.html" %}
 {% block content %}
-    <h2>Lost & Found Items</h2>
-    <div class="row">
+<div class="container">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">Lost & Found Items</h1>
+            <p class="text-muted">Browse and search for lost or found items</p>
+        </div>
+        {% if current_user.is_authenticated %}
+        <div class="flex gap-2">
+            <a href="{{ url_for('report_lost') }}" class="btn btn-outline">
+                Report Lost
+            </a>
+            <a href="{{ url_for('report_found') }}" class="btn btn-primary">
+                Report Found
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="flex gap-2 mb-6" style="border-bottom: 1px solid hsl(var(--border)); padding-bottom: 0.5rem;">
+        <a href="{{ url_for('items') }}"
+            class="btn btn-sm {% if not request.args.get('filter') %}btn-primary{% else %}btn-outline{% endif %}">
+            All Items
+        </a>
+        <a href="{{ url_for('items', filter='lost') }}"
+            class="btn btn-sm {% if request.args.get('filter') == 'lost' %}btn-primary{% else %}btn-outline{% endif %}">
+            Lost Only
+        </a>
+        <a href="{{ url_for('items', filter='found') }}"
+            class="btn btn-sm {% if request.args.get('filter') == 'found' %}btn-primary{% else %}btn-outline{% endif %}">
+            Found Only
+        </a>
+    </div>
+
+
+    <!-- Items Grid -->
+    <div class="items-grid">
         {% for item in items %}
-            <div class="col-md-4 mb-4">
-                <div class="card">
-                    {% if item.image_filename %}
-                        <img src="{{ url_for('static', filename='uploads/' + item.image_filename) }}" class="card-img-top" alt="{{ item.item_name }}">
+        <div class="card item-card">
+            {% if item.image_filename %}
+            <div class="item-image">
+                <img src="{{ url_for('static', filename='uploads/' + item.image_filename) }}"
+                    alt="{{ item.item_name }}">
+            </div>
+            {% else %}
+            <div class="item-image item-image-placeholder">
+                <svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z">
+                    </path>
+                </svg>
+            </div>
+            {% endif %}
+
+            <div class="card-content">
+                <div class="item-header">
+                    <h3 class="item-title">{{ item.item_name }}</h3>
+                    {% if item.status == 'Found' %}
+                    <span class="badge badge-success">Found</span>
                     {% else %}
-                        <img src="{{ url_for('static', filename='images/placeholder.png') }}" class="card-img-top" alt="No Image">
+                    <span class="badge badge-warning">Lost</span>
                     {% endif %}
-                    <div class="card-body">
-                        <h5 class="card-title">{{ item.item_name }}</h5>
-                        <p class="card-text">{{ item.description | truncate(70) }}</p>
-                        <p class="card-text"><small class="text-muted">Status: {{ item.status }}</small></p>
-                        <p class="card-text"><small class="text-muted">Date: {{ item.lost_found_date.strftime('%Y-%m-%d') }}</small></p>
-                        <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn btn-info btn-sm">View Details</a>
-                        {% if current_user.is_admin() or current_user.is_hod() %}
-                            <form action="{{ url_for('delete_item', item_id=item.id) }}" method="POST" style="display:inline;">
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to move this item to history?');">Delete</button>
-                            </form>
+                </div>
+
+                <p class="item-description">{{ item.description | truncate(100) }}</p>
+
+                <!-- Verification Score (for Found items) -->
+                {% if item.status == 'Found' and item.verification_score is not none %}
+                <div class="verification-badge">
+                    {% set confidence_pct = (item.verification_score * 100) | int %}
+                    <div class="verification-label">
+                        <span class="text-xs text-muted">AI Confidence:</span>
+                        {% if confidence_pct >= 70 %}
+                        <span class="badge badge-success text-xs">{{ confidence_pct }}%</span>
+                        {% elif confidence_pct >= 40 %}
+                        <span class="badge badge-warning text-xs">{{ confidence_pct }}%</span>
+                        {% else %}
+                        <span class="badge badge-destructive text-xs">{{ confidence_pct }}%</span>
                         {% endif %}
                     </div>
-                    <div class="card-footer text-muted">
-                        Reported by: {{ item.reporter.full_name }} on {{ item.reported_at.strftime('%Y-%m-%d %H:%M') }}
+                    <div class="score-indicator">
+                        <div class="score-bar {% if confidence_pct >= 70 %}high{% elif confidence_pct >= 40 %}medium{% else %}low{% endif %}"
+                            style="width: {{ confidence_pct }}%"></div>
                     </div>
                 </div>
+                {% endif %}
+
+                <div class="item-meta">
+                    <span>{{ item.location }}</span>
+                    <span>•</span>
+                    <span>{{ item.lost_found_date.strftime('%b %d, %Y') }}</span>
+                </div>
+
+                <div class="item-actions">
+                    <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn btn-primary btn-sm flex-1">
+                        View Details
+                    </a>
+                    {% if current_user.is_admin() or current_user.is_hod() %}
+                    <form action="{{ url_for('delete_item', item_id=item.id) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn btn-destructive btn-sm"
+                            onclick="return confirm('Archive this item?');" title="Archive">
+                            Delete
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+
+
             </div>
+        </div>
         {% else %}
-            <p class="col-12">No active items to display.</p>
+        <div class="empty-state">
+            <div class="empty-icon">
+                <svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path>
+                </svg>
+            </div>
+            <h3 class="empty-title">No Items Found</h3>
+            <p class="empty-description">No active items match your search criteria</p>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('report_found') }}" class="btn btn-primary">Report a Found Item</a>
+            {% endif %}
+        </div>
         {% endfor %}
     </div>
+</div>
+
+<style>
+    /* Responsive Grid Layout */
+    .items-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Item Card Styling */
+    .item-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .item-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .item-image {
+        height: 240px;
+        /* Increased height for better visibility */
+        overflow: hidden;
+        background: hsl(var(--muted) / 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem;
+        /* Add padding around the image */
+    }
+
+    .item-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        /* Ensure full item is visible, not cropped */
+        transition: transform 0.3s ease;
+    }
+
+    .item-card:hover .item-image img {
+        transform: scale(1.05);
+    }
+
+    .item-image-placeholder svg {
+        opacity: 0.3;
+    }
+
+    .item-card .card-content {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+
+    .item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .item-title {
+        font-size: 1.25rem;
+        /* Slightly larger title */
+        font-weight: 600;
+        margin: 0;
+        flex: 1;
+        line-height: 1.3;
+    }
+
+    .item-description {
+        font-size: 0.9rem;
+        color: hsl(var(--muted-foreground));
+        margin-bottom: 1.25rem;
+        line-height: 1.5;
+        min-height: 3rem;
+        /* Ensure consistent text area */
+    }
+
+    .verification-badge {
+        margin-bottom: 1rem;
+    }
+
+    .verification-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .item-meta {
+        display: flex;
+        gap: 0.75rem;
+        font-size: 0.8rem;
+        color: hsl(var(--muted-foreground));
+        margin-bottom: 1.25rem;
+        flex-wrap: wrap;
+        font-weight: 500;
+    }
+
+    .item-actions {
+        display: flex;
+        gap: 0.75rem;
+        /* Better button spacing */
+        margin-bottom: 1rem;
+        margin-top: auto;
+        /* Push buttons to bottom of content area */
+    }
+
+
+
+    /* Empty State */
+    .empty-state {
+        grid-column: 1 / -1;
+        padding: 4rem 2rem;
+        text-align: center;
+    }
+
+    .empty-icon {
+        opacity: 0.3;
+        margin-bottom: 1rem;
+    }
+
+    .empty-icon svg {
+        margin: 0 auto;
+    }
+
+    .empty-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-description {
+        color: hsl(var(--muted-foreground));
+        margin-bottom: 1.5rem;
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 1200px) {
+        .items-grid {
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .items-grid {
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .item-image {
+            height: 180px;
+        }
+
+        .item-title {
+            font-size: 1rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .items-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .item-actions {
+            flex-direction: column;
+        }
+
+        .item-actions .btn {
+            width: 100%;
+        }
+    }
+</style>
 {% endblock content %}
