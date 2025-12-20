@@ -1237,7 +1237,7 @@ def debug_users():
             'email': user.email,
             'role': user.role,
             'avatar': user.avatar_filename,
-            'password_hash_preview': user.password_hash[:20] + '...' if user.password_hash else 'None'
+            'has_password': True if user.password_hash else False
         })
     print(f"DEBUG: /debug/users requested. Found {len(users)} users.")
     # Return as JSON for easy inspection in browser
