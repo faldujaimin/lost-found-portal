@@ -2286,7 +2286,7 @@ def item_matches(item_id):
     return render_template('item_matches.html', item=item, matches=matches)
 
 
-if __name__ == '__main__':
+def init_db():
     with app.app_context():
         # Ensure the upload directory exists at startup too, for robustness
         if not os.path.exists(UPLOAD_FOLDER):
@@ -2334,5 +2334,9 @@ if __name__ == '__main__':
                 print(f"Startup DEBUG: Existing user '{hod_exists.registration_no}' promoted from role '{old_role}' to 'hod'.")
             else:
                 print(f"Startup DEBUG: HOD user '{hod_exists.registration_no}' already exists. Role: '{hod_exists.role}'")
-    
+
+# Run DB initialization on import (for Gunicorn/Render)
+init_db()
+
+if __name__ == '__main__':
     app.run(debug=True)
