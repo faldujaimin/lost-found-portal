@@ -107,17 +107,21 @@
                         </div>
 
                         {% if item_type == 'Found' %}
-                        <!-- Banner & Confirmation -->
-                        <div id="confirmation-banner" class="alert alert-warning mt-2" style="display:none;">
-                            <strong>Protected Item Detected</strong>
-                            <p class="text-sm">Please verify the details carefully.</p>
+                        <!-- Confirmation moved up -->
+                        <div id="confirmation-banner" class="alert alert-warning mb-4" style="display:none;">
+                            <strong>Valuable Item Detected</strong>
+                            <p class="text-sm">Please verify the photo and tick the box below to proceed.</p>
                         </div>
                         <div class="form-group" id="phone-confirm-group" style="display:none;">
                             <label
-                                class="flex items-center gap-3 p-3 border rounded bg-muted/20 cursor-pointer hover:bg-muted/50 transition-colors">
-                                {{ form.phone_confirm(class="w-5 h-5", id="phone_confirm") }}
-                                <span class="font-medium">I confirm this photo shows the item reported</span>
+                                class="flex items-center gap-3 p-3 border-2 border-warning/50 rounded bg-warning/5 cursor-pointer hover:bg-warning/10 transition-colors">
+                                {{ form.phone_confirm(class="w-6 h-6", id="phone_confirm") }}
+                                <span class="font-bold text-warning-foreground">I confirm this photo shows the claimed
+                                    item</span>
                             </label>
+                            {% if form.phone_confirm.errors %}
+                            <div class="form-error">{{ form.phone_confirm.errors[0] }}</div>
+                            {% endif %}
                         </div>
                         {% endif %}
 
@@ -156,27 +160,43 @@
 
 <!-- Protected Item Detection Script -->
 <script>
-    const PROTECTED_KEYWORDS = {{ protected_keywords| tojson if protected_keywords else '[]' | safe }};
+    const PROTECTED_KEYWORDS = {{ (protected_keywords or[]) | tojson | safe }};
 
-    // Monitor item name input for protected keywords
-    const itemNameInput = document.getElementById('item_name');
-    const confirmBanner = document.getElementById('confirmation-banner');
-    const confirmGroup = document.getElementById('phone-confirm-group');
+    function checkProtected() {
+        const itemNameInput = document.getElementById('item_name');
+        const confirmBanner = document.getElementById('confirmation-banner');
+        const confirmGroup = document.getElementById('phone-confirm-group');
 
-    if (itemNameInput && confirmBanner && confirmGroup) {
-        itemNameInput.addEventListener('input', function () {
-            const value = this.value.toLowerCase();
-            const isProtected = PROTECTED_KEYWORDS.some(keyword => value.includes(keyword.toLowerCase()));
+        if (!itemNameInput || !confirmBanner || !confirmGroup) return;
 
-            if (isProtected) {
-                confirmBanner.style.display = 'block';
-                confirmGroup.style.display = 'block';
-            } else {
-                confirmBanner.style.display = 'none';
-                confirmGroup.style.display = 'none';
+        const value = itemNameInput.value.toLowerCase();
+        const isProtected = PROTECTED_KEYWORDS.some(keyword => value.includes(keyword.toLowerCase()));
+
+        if (isProtected) {
+            confirmBanner.style.display = 'block';
+            confirmGroup.style.display = 'block';
+            console.log("DEBUG: Protected item detected, showing confirmation group.");
+            // Scroll to it if it just became visible and it's a new interaction
+            if (document.activeElement === itemNameInput) {
+                // confirmGroup.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
-        });
+        } else {
+            confirmBanner.style.display = 'none';
+            confirmGroup.style.display = 'none';
+        }
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const itemNameInput = document.getElementById('item_name');
+        if (itemNameInput) {
+            itemNameInput.addEventListener('input', checkProtected);
+            // Check immediately for persistence
+            checkProtected();
+        }
+    });
+
+    // Backup check on window load
+    window.addEventListener('load', checkProtected);
 </script>
 
 <style>

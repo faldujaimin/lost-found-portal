@@ -7,8 +7,7 @@
             <p class="hero-subtitle">Helping students reconnect with their lost items through AI-powered matching</p>
 
             <div class="hero-actions">
-                <a href="{{ url_for('items') }}" class="btn btn-lg"
-                    style="background: white; color: hsl(var(--primary)); border: none;">
+                <a href="{{ url_for('items') }}" class="btn btn-hero-cta btn-lg">
                     Browse Items
                 </a>
                 {% if current_user.is_authenticated %}
@@ -154,9 +153,15 @@
         color: white;
     }
 
+    .btn-hero-cta {
+        background: white !important;
+        color: #000000 !important;
+        border: none !important;
+    }
+
     .hero-section .btn-outline:hover {
         background: white;
-        color: hsl(var(--primary));
+        color: #000000;
     }
 
     /* Features Section */

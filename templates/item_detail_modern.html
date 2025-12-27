@@ -63,7 +63,8 @@
                             </div>
 
                             <div class="score-indicator mb-3">
-                                <div class="score-bar {{ score_class }}" style="width: {{ confidence_pct }}%"></div>
+                                <div class="score-bar {{ score_class }}" style="width: {{ confidence_pct or 0 }}%;">
+                                </div>
                             </div>
 
                             <p class="text-xs text-muted">
@@ -154,8 +155,17 @@
                         {% for m in messages %}
                         <div class="mb-3 p-3 rounded" style="background: hsl(var(--muted) / 0.3);">
                             <div class="flex justify-between items-start mb-1">
-                                <span class="font-semibold text-sm">{{ m.user.full_name }}</span>
-                                <span class="text-xs text-muted">{{ m.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+                                <span class="font-semibold text-sm">
+                                    {% if m.user_id == item.reporter_id %}
+                                    Reporter ({{ m.user.full_name }})
+                                    {% elif current_user.id == m.user_id or current_user.is_admin() or
+                                    current_user.is_hod() %}
+                                    {{ m.user.full_name }}
+                                    {% else %}
+                                    Student #{{ m.user_id }}
+                                    {% endif %}
+                                </span>
+                                <span class="text-xs text-muted">{{ m.timestamp.strftime('%H:%M • %b %d') }}</span>
                             </div>
                             <p class="text-sm">{{ m.content }}</p>
                         </div>
@@ -216,7 +226,59 @@
                             <p class="text-xs text-muted">On: {{ item.deleted_at.strftime('%Y-%m-%d %H:%M') if
                                 item.deleted_at else 'N/A' }}</p>
                         </div>
-                        {% endif %}
+                    </div>
+
+                    {% if item.is_active %}
+                    <div class="mt-4 pt-4 border-t">
+                        <a href="{{ url_for('item_matches', item_id=item.id) }}"
+                            class="btn btn-primary w-full flex items-center justify-center gap-2">
+                            <span>🤖</span> Find AI Smart Matches
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Blockchain Verification Card -->
+            <div class="card mt-4">
+                <div class="card-header" style="background: hsl(var(--primary) / 0.05);">
+                    <h3 class="card-title text-sm flex items-center gap-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                        </svg>
+                        Blockchain Verification
+                    </h3>
+                </div>
+                <div class="card-content">
+                    <div id="blockchain-loader" class="text-xs text-muted py-2">
+                        <span class="flex items-center gap-2">
+                            <span class="animate-spin">⏳</span> Verifying authenticity...
+                        </span>
+                    </div>
+
+                    <div id="blockchain-status" class="hidden">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-medium">STATUS</span>
+                            <span id="bc-badge" class="badge"></span>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-[10px] text-muted font-bold uppercase tracking-wider">Transaction Hash
+                                </p>
+                                <p class="text-[10px] font-mono break-all text-muted p-2 rounded mt-1"
+                                    style="background: hsl(var(--muted)/0.5);">
+                                    {{ item.blockchain_hash or 'Generating...' }}
+                                </p>
+                            </div>
+
+                            <div id="bc-details" class="text-[10px] p-2 rounded border"
+                                style="background: hsl(var(--muted)/0.2); border-color: hsl(var(--border));">
+                                <!-- Dynamic message -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -266,5 +328,36 @@
         content: " ▼";
     }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const itemId = "{{ item.id }}";
+        const loader = document.getElementById('blockchain-loader');
+        const statusDiv = document.getElementById('blockchain-status');
+        const badge = document.getElementById('bc-badge');
+        const details = document.getElementById('bc-details');
+
+        fetch(`/api/verify_item/${itemId}`)
+            .then(response => response.json())
+            .then(data => {
+                loader.classList.add('hidden');
+                statusDiv.classList.remove('hidden');
+
+                if (data.valid) {
+                    badge.textContent = 'VERIFIED';
+                    badge.classList.add('badge-success');
+                    details.innerHTML = '<span class="text-success">✅ This item is cryptographically secured. The current record matches the original report recorded in the item ledger.</span>';
+                } else {
+                    badge.textContent = 'TAMPERED';
+                    badge.classList.add('badge-destructive');
+                    details.innerHTML = `<span class="text-destructive">❌ WARNING: ${data.message}. This record may have been altered since it was first reported.</span>`;
+                }
+            })
+            .catch(err => {
+                if (loader) loader.innerHTML = '<span class="text-destructive">Verification service offline</span>';
+                console.error('Blockchain verification failed:', err);
+            });
+    });
+</script>
 
 {% endblock content %}

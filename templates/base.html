@@ -10,7 +10,14 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='l&f.png') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='lost_found.svg') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='lost_found.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='lost_found.svg') }}">
+
+    <!-- PWA -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#3b82f6">
+
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -59,7 +66,7 @@
         }
 
         .navbar-brand img {
-            height: 36px;
+            height: 44px;
             width: auto;
         }
 
@@ -273,7 +280,7 @@
     <nav class="navbar">
         <div class="navbar-container">
             <a class="navbar-brand" href="{{ url_for('home') }}">
-                <img src="{{ url_for('static', filename='l&f.png') }}" alt="Lost & Found" />
+                <img src="{{ url_for('static', filename='lost_found.svg') }}" alt="Lost & Found" />
                 <span>Lost & Found</span>
             </a>
 
@@ -414,6 +421,14 @@
                 link.classList.add('active');
             }
         });
+        // Initialize PWA Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('PWA Service Worker registered'))
+                    .catch(err => console.log('PWA Service Worker registration failed', err));
+            });
+        }
     </script>
 
     {% block extra_js %}{% endblock %}

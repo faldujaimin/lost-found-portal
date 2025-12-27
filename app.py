@@ -17,6 +17,9 @@ from wtforms import StringField, PasswordField, SubmitField, TextAreaField, Date
 from wtforms.validators import DataRequired, Length, EqualTo, ValidationError, Regexp, Optional
 from wtforms.widgets import DateInput
 from flask_wtf.file import FileAllowed
+from config import Config
+from blockchain import Blockchain, Block
+import json
 
 """
 Lost & Found Portal (Flask)
@@ -70,7 +73,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 # Items that should require explicit confirmation when their name appears in the report
 PROTECTED_KEYWORDS = [
-    'phone','mobile','iphone','android','samsung','xiaomi','pixel','phone','handphone',
+    'phone','mobile','cell phone','iphone','android','samsung','xiaomi','pixel','phone','handphone',
     'book','bag','backpack','purse','wallet','keys','key','id','id card','card',
     'laptop','macbook','notebook','watch','ring','jewel','jewelry','glasses','specs','spectacles',
     'umbrella','pen','pens','pen drive','pendrive','usb','flash drive','calculator','calc','charger',
@@ -79,21 +82,14 @@ PROTECTED_KEYWORDS = [
 ]
  
 app = Flask(__name__)
-# IMPORTANT: Change this to a strong, unique, and secret key in production!
-app.config['SECRET_KEY'] = 'your_super_secret_key_change_this_in_production_really_strong'
-# Use an absolute path to the SQLite file inside instance/ so it isn't lost if
-# the server process is restarted or run from a different working directory.
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + DB_PATH.replace('\\', '/')
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER # Link upload folder to Flask config
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # Limit uploads to 16 Megabytes
-app.config['ALLOWED_EXTENSIONS'] = ALLOWED_EXTENSIONS # Store allowed extensions in config
-# Toggle CLIP-based image-text verification (set to False to disable)
-app.config['USE_CLIP_VERIFICATION'] = True
-# Default CLIP matching threshold (soft, tuneable per-site)
-app.config['CLIP_THRESHOLD'] = 0.22
-# Thresholds for detecting strong conflicting signals
-app.config['DETECTION_CONFLICT_THRESHOLD'] = 0.7
-app.config['CLIP_CONFLICT_THRESHOLD'] = 0.6
+app.config.from_object(Config)
+
+# Register Jinja2 filters
+app.jinja_env.filters['fromjson'] = json.loads
+
+# Ensure the upload folder exists
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
 # Note: history page is no longer protected by a secondary password. Access is
 # controlled solely by user role (admin or hod).
 
@@ -133,6 +129,104 @@ try:
     TZ_INDIA = ZoneInfo('Asia/Kolkata')
 except Exception:
     TZ_INDIA = None
+
+# --- Blockchain Helpers ---
+def record_to_blockchain(item):
+    """Adds a new block to the persistent chain for the given item."""
+    # Get the latest block from DB to link the chain
+    latest_db_block = BlockchainBlock.query.order_by(BlockchainBlock.index.desc()).first()
+    
+    if not latest_db_block:
+        # Create Genesis block if it doesn't exist
+        genesis = Block(0, _dt.utcnow().timestamp(), 0, "Genesis Block", "0")
+        db_genesis = BlockchainBlock(
+            index=genesis.index,
+            timestamp=genesis.timestamp,
+            item_id=None,
+            item_data=genesis.item_data,
+            previous_hash=genesis.previous_hash,
+            nonce=genesis.nonce,
+            hash=genesis.hash
+        )
+        db.session.add(db_genesis)
+        db.session.commit()
+        latest_db_block = db_genesis
+    
+    # Prepare item data for hashing
+    item_data_dict = {
+        "item_name": item.item_name,
+        "description": item.description,
+        "location": item.location,
+        "reporter": item.reporter.registration_no if item.reporter else "unknown"
+    }
+    item_data_json = json.dumps(item_data_dict, sort_keys=True)
+    
+    # Create the new block
+    # We use Blockchain difficulty 2 for speed
+    new_block_obj = Block(
+        index=latest_db_block.index + 1,
+        timestamp=_dt.utcnow().timestamp(),
+        item_id=item.id,
+        item_data=item_data_json,
+        previous_hash=latest_db_block.hash
+    )
+    new_block_obj.mine_block(2)
+    
+    # Save block to DB
+    db_block = BlockchainBlock(
+        index=new_block_obj.index,
+        timestamp=new_block_obj.timestamp,
+        item_id=item.id,
+        item_data=new_block_obj.item_data,
+        previous_hash=new_block_obj.previous_hash,
+        nonce=new_block_obj.nonce,
+        hash=new_block_obj.hash
+    )
+    db.session.add(db_block)
+    
+    # Update item with the block hash
+    item.blockchain_hash = new_block_obj.hash
+    db.session.commit()
+    print(f"DEBUG: Recorded Item {item.id} to Blockchain with hash {new_block_obj.hash[:10]}...")
+
+def verify_item_blockchain(item_id):
+    """Verifies that the item data matches its blockchain record."""
+    item = Item.query.get(item_id)
+    if not item or not item.blockchain_hash:
+        return False, "Item not found or not in blockchain"
+    
+    block = BlockchainBlock.query.filter_by(hash=item.blockchain_hash).first()
+    if not block:
+        return False, "Blockchain record missing"
+    
+    # Re-calculate hash from stored block data to ensure block integrity
+    recalc_block = Block(
+        index=block.index,
+        timestamp=block.timestamp,
+        item_id=block.item_id,
+        item_data=block.item_data,
+        previous_hash=block.previous_hash,
+        nonce=block.nonce
+    )
+    if recalc_block.hash != block.hash:
+        return False, "Block hash mismatch (Internal Tampering!)"
+    
+    # Verify current item data against block data
+    try:
+        stored_data = json.loads(block.item_data)
+        current_data = {
+            "item_name": item.item_name,
+            "description": item.description,
+            "location": item.location,
+            "reporter": item.reporter.registration_no if item.reporter else "unknown"
+        }
+        
+        if json.dumps(stored_data, sort_keys=True) != json.dumps(current_data, sort_keys=True):
+            return False, "Item data has been tampered with!"
+    except Exception as e:
+        return False, f"Verification error: {e}"
+        
+    return True, "Verified authentic"
 # ...existing code...
 # --- Helper Functions ---
 # Checks if an uploaded filename has an allowed extension
@@ -247,7 +341,8 @@ def clip_verify(item_name, file_path, threshold=None):
             'keys', 'keychain', 'watch', 'wrist watch',
             'headphones', 'earbuds', 'water bottle', 'umbrella',
             'id card', 'credit card', 'glasses', 'sunglasses',
-            'book', 'notebook', 'shoe', 'clothing'
+            'book', 'notebook', 'shoe', 'clothing', 'powerbank',
+            'pendrive', 'usb flash drive', 'flash drive', 'calculator'
         ]
         
         for obj in common_objects:
@@ -308,22 +403,37 @@ def api_analyze_image():
             'confidence': 0.0
         }
         
-        # 1. Run YOLO
+        # 1. Resize image for faster analysis (Speed Optimization)
         try:
-            yolo_dets = detect_with_yolo(temp_path)
+            from PIL import Image
+            img_for_resize = Image.open(temp_path).convert('RGB')
+            if max(img_for_resize.size) > 800:
+                img_for_resize.thumbnail((800, 800), Image.Resampling.LANCZOS)
+                img_for_resize.save(temp_path, quality=85)
+            img_for_resize.close()
+        except Exception as e:
+            print(f"Resize optimization failed: {e}")
+
+        # 2. Run YOLO (Lower threshold for better recall/accuracy)
+        try:
+            yolo_dets = detect_with_yolo(temp_path, conf=0.3)
+            # Filter out 'person' as it's often background noise in these photos
+            yolo_dets = [d for d in yolo_dets if d['label'] != 'person']
+            
             results['detected_objects'] = yolo_dets
             if yolo_dets:
-                results['best_guess'] = yolo_dets[0]['label']
-                results['confidence'] = yolo_dets[0]['score']
+                # If YOLO is very confident, use it immediately
+                # EXCEPT for certain categories known for false positives (like scissors)
+                if yolo_dets[0]['score'] > 0.8 and yolo_dets[0]['label'] not in ['scissors', 'handbag']:
+                    results['best_guess'] = yolo_dets[0]['label']
+                    results['confidence'] = yolo_dets[0]['score']
+                    results['source'] = 'yolo'
         except Exception as e:
             print(f"YOLO failed: {e}")
             
-        # 2. Run CLIP with common objects if YOLO failed or for better context
-        # We compare against the common list defined above
+        # 3. Use CLIP if YOLO is uncertain or empty (Accuracy Optimization)
         try:
-             # Re-use logic or call a simplified clip helper
-             # For now, just rely on YOLO for explicit detection display, or add basic CLIP classification if YOLO is empty
-             if not results['detected_objects']:
+             if not results['best_guess'] or results['confidence'] < 0.7:
                  # Simplified CLIP classification
                  model_proc = _load_clip_model()
                  if model_proc:
@@ -333,8 +443,23 @@ def api_analyze_image():
                      img = Image.open(temp_path).convert('RGB')
                      
                      common_objects = [
-                        'cell phone', 'laptop', 'bag', 'wallet', 'watch', 
-                        'keys', 'headphones', 'bottle', 'id card', 'book'
+                        'cell phone', 'smartphone', 'iphone', 'android phone',
+                        'laptop', 'macbook', 'computer',
+                        'bag', 'backpack', 'handbag', 'tote bag',
+                        'wallet', 'purse', 'pouch',
+                        'watch', 'smartwatch', 'smart watch', 'digital watch', 'wrist watch',
+                        'keys', 'keychain', 'car keys',
+                        'headphones', 'earbuds', 'airpods',
+                        'water bottle', 'bottle', 'flask', 'thermos',
+                        'id card', 'student id', 'credit card', 'license',
+                        'book', 'textbook', 'notebook', 'folder', 'file',
+                        'charger', 'adapter', 'usb cable', 'cable', 'wire',
+                        'glasses', 'sunglasses', 'spectacles',
+                        'umbrella', 'mouse', 'keyboard', 'calculator',
+                        'pen', 'pencil', 'stationery',
+                        'hat', 'cap', 'clothing', 'shoe', 'sneaker',
+                        'ring', 'bracelet', 'necklace', 'jewelry',
+                        'powerbank', 'pendrive', 'flash drive'
                      ]
                      inputs = processor(text=common_objects, images=img, return_tensors="pt", padding=True)
                      with torch.no_grad():
@@ -385,7 +510,7 @@ def _load_yolo():
         return None
 
 
-def detect_with_yolo(image_path, conf=0.25):
+def detect_with_yolo(image_path, conf=0.5):
     """Run YOLOv8 detection and return list of {'label','score','box','area'} sorted by score desc."""
     model = _load_yolo()
     if not model:
@@ -610,10 +735,14 @@ KEYWORD_TO_COCO_LABELS = {
     'id': [],
     'id card': [],
     'card': [],
-    'watch': [],
+    'watch': ['watch', 'clock'],
+    'smartwatch': ['watch', 'clock'],
+    'smart watch': ['watch', 'clock'],
+    'iwatch': ['watch', 'clock'],
+    'apple watch': ['watch', 'clock'],
     'ring': [],
-    'glasses': [],
-    'specs': [],
+    'glasses': ['glasses', 'sunglasses'],
+    'specs': ['glasses', 'sunglasses'],
     'spectacles': [],
     'charger': [],
     'cable': [],
@@ -637,11 +766,12 @@ KEYWORD_TO_COCO_LABELS = {
 
 # Treat all configured protected keywords as items that need stricter verification
 PROTECTED_STRICT = set([k.lower() for k in PROTECTED_KEYWORDS])
-{'laptop','macbook','notebook','wallet','id','id card','card','backpack','bag','purse'}
+# Hardcoded set was dead code, now merged into the logic if needed or just kept as is.
+# PROTECTED_STRICT.update(['laptop','macbook','notebook','wallet','id','id card','card','backpack','bag','purse'])
 
 
 
-def verify_protected_image(item_name, file_path, score_threshold=0.3, min_size=120):
+def verify_protected_image(item_name, file_path, score_threshold=0.3, min_size=120, yolo_dets=None):
     """Return (True, info) if image plausibly contains the claimed item.
     If False, info contains a short reason or detected labels.
 
@@ -671,7 +801,9 @@ def verify_protected_image(item_name, file_path, score_threshold=0.3, min_size=1
 
     # First try YOLOv8 (preferred if available) - this helps detect many object classes reliably
     try:
-        yolo_dets = detect_with_yolo(file_path)
+        if yolo_dets is None:
+            yolo_dets = detect_with_yolo(file_path)
+        
         if yolo_dets:
             detection_attempted = True
             print(f"DEBUG: YOLO labels for '{item_name}': {yolo_dets}")
@@ -680,12 +812,21 @@ def verify_protected_image(item_name, file_path, score_threshold=0.3, min_size=1
                 for d in yolo_dets:
                     if exp in d['label'] or d['label'] in exp:
                         return (True, f"YOLO detected: {d['label']} ({d['score']:.2f})")
-            # If YOLO top detection is a strong conflicting object, reject
+            # If YOLO top detection is a strong conflicting object, perform a CLIP "sanity check" before rejecting
             top = yolo_dets[0]
             conflict_thresh = app.config.get('DETECTION_CONFLICT_THRESHOLD', 0.7)
             if top['score'] >= conflict_thresh:
+                # Sanity Check: If CLIP thinks it's the item_name, don't reject based on YOLO conflict
+                try:
+                    clip_ok, _, _, _ = clip_verify(item_name, file_path)
+                    if clip_ok:
+                        print(f"DEBUG: YOLO conflict ('{top['label']}') overridden by CLIP for '{item_name}'")
+                        return (True, f"YOLO detected {top['label']} but CLIP verified as {item_name}")
+                except Exception:
+                    pass
+
                 reason = f"Uploaded image appears to show '{top['label']}' (confidence {top['score']:.2f}), not '{item_name}'. Please upload a photo of the claimed item or correct the item name."
-                print(f"DEBUG: YOLO detection conflict: {reason}")
+                print(f"DEBUG: YOLO detection conflict (confirmed by lack of CLIP match): {reason}")
                 return (False, reason)
             # Otherwise continue to other checks (torchvision/CLIP/heuristic)
     except Exception as e:
@@ -907,7 +1048,7 @@ def verify_protected_image(item_name, file_path, score_threshold=0.3, min_size=1
         return (True, 'Unable to verify image server-side; please ensure the uploaded image clearly shows the item.')
 
 
-def cross_verify_item(item_name, file_path, extracted_text=None):
+def cross_verify_item(item_name, file_path, extracted_text=None, yolo_dets=None):
     """
     Cross-verify item name against multiple analysis methods:
     1. OCR extracted text (fuzzy matching)
@@ -968,13 +1109,15 @@ def cross_verify_item(item_name, file_path, extracted_text=None):
     # 2. YOLO Object Detection Matching
     yolo_weight = 0.35
     try:
-        yolo_detections = detect_with_yolo(file_path)
-        if yolo_detections:
+        if yolo_dets is None:
+            yolo_dets = detect_with_yolo(file_path)
+            
+        if yolo_dets:
             # Check if any YOLO detection matches item name
             best_yolo_score = 0.0
             best_yolo_label = None
             
-            for detection in yolo_detections:
+            for detection in yolo_dets:
                 label = detection['label'].lower()
                 score = detection['score']
                 
@@ -990,7 +1133,7 @@ def cross_verify_item(item_name, file_path, extracted_text=None):
             
             details['yolo_score'] = best_yolo_score
             details['yolo_match'] = best_yolo_label if best_yolo_label else 'no_match'
-            details['yolo_detections'] = [{'label': d['label'], 'score': d['score']} for d in yolo_detections[:3]]
+            details['yolo_detections'] = [{'label': d['label'], 'score': d['score']} for d in yolo_dets[:3]]
             
             print(f"DEBUG: YOLO verification - Score: {details['yolo_score']:.2f}, Best match: {best_yolo_label}")
         else:
@@ -1037,12 +1180,13 @@ def cross_verify_item(item_name, file_path, extracted_text=None):
         object_categories = {
             'phone': ['phone', 'cell', 'mobile', 'smartphone', 'iphone', 'android'],
             'laptop': ['laptop', 'computer', 'notebook', 'macbook'],
-            'bag': ['bag', 'backpack', 'handbag', 'purse', 'suitcase', 'luggage'],
+            'bag': ['bag', 'backpack', 'handbag', 'purse', 'suitcase', 'luggage', 'tote'],
             'wallet': ['wallet', 'purse'],
-            'watch': ['watch', 'clock', 'wristwatch'],
+            'watch': ['watch', 'clock', 'wristwatch', 'smartwatch', 'iwatch'],
             'keys': ['keys', 'key'],
-            'card': ['card', 'id', 'license'],
-            'book': ['book', 'notebook', 'textbook']
+            'card': ['card', 'id', 'license', 'student id'],
+            'book': ['book', 'notebook', 'textbook', 'folder'],
+            'glasses': ['glasses', 'sunglasses', 'spectacles']
         }
         
         # Determine claimed category
@@ -1100,6 +1244,80 @@ def cross_verify_item(item_name, file_path, extracted_text=None):
     return (verified, overall_confidence, details)
 
 
+# --- AI Smart Matching Helper ---
+def find_smart_matches(target_item):
+    """
+    Find potential matches for a given item (Lost -> Found or Found -> Lost).
+    Returns a list of dicts with {'item', 'score', 'reasons'}.
+    """
+    if not target_item:
+        return []
+    
+    # We look for opposite status items that are active
+    opposite_status = 'Found' if target_item.status == 'Lost' else 'Lost'
+    candidates = Item.query.filter_by(status=opposite_status, is_active=True).all()
+    
+    matches = []
+    target_name = target_item.item_name.lower()
+    target_tags = set(target_name.split())
+    
+    for item in candidates:
+        score = 0
+        reasons = []
+        name = item.item_name.lower()
+        item_tags = set(name.split())
+        
+        # 1. Name Similarity
+        if target_name == name:
+            score += 0.8
+            reasons.append("Exact name match")
+        else:
+            intersection = target_tags.intersection(item_tags)
+            if intersection:
+                overlap = len(intersection) / max(len(target_tags), len(item_tags))
+                if overlap > 0.3:
+                    score += 0.5
+                    reasons.append(f"Keyword match: {', '.join(intersection)}")
+            
+        # 2. Location Match
+        if target_item.location and item.location:
+            if target_item.location.lower() == item.location.lower():
+                score += 0.3
+                reasons.append("Same location reported")
+            
+        # 3. Date Proximity
+        if target_item.lost_found_date and item.lost_found_date:
+            diff = abs((target_item.lost_found_date - item.lost_found_date).days)
+            if diff <= 7:
+                date_score = 0.2 * (1 - (diff / 7))
+                score += date_score
+                reasons.append(f"Dates match within {diff} days")
+
+        # 4. AI-Detection Match
+        try:
+            if target_item.verification_details and item.verification_details:
+                target_dets = json.loads(target_item.verification_details).get('yolo_detections', [])
+                item_dets = json.loads(item.verification_details).get('yolo_detections', [])
+                target_labels = {d['label'] for d in target_dets}
+                item_labels = {d['label'] for d in item_dets}
+                label_overlap = target_labels.intersection(item_labels)
+                if label_overlap:
+                    score += 0.4
+                    reasons.append(f"AI detected similar objects: {', '.join(label_overlap)}")
+        except Exception:
+            pass
+        
+        if score >= 0.4:
+            matches.append({
+                'item': item,
+                'score': int(min(score * 100, 100)),
+                'reasons': reasons
+            })
+            
+    matches.sort(key=lambda x: x['score'], reverse=True)
+    return matches[:5]
+
+
 # --- Models (Object-Relational Mapping) ---
 # IMPORTANT: Item model is defined BEFORE User model to resolve
 # "forward reference" issues for foreign_keys in User's relationships.
@@ -1123,6 +1341,7 @@ class Item(db.Model):
     ocr_extracted_text = db.Column(db.Text, nullable=True) # Text extracted from image via OCR
     verification_score = db.Column(db.Float, nullable=True) # Cross-verification confidence (0.0-1.0)
     verification_details = db.Column(db.Text, nullable=True) # JSON string with detailed verification results
+    blockchain_hash = db.Column(db.String(64), nullable=True) # Linked to blockchain record
 
     def __repr__(self):
         # Defensive check for reporter existence before accessing .full_name
@@ -1265,6 +1484,21 @@ class Message(db.Model):
     def __repr__(self):
         return f"Message(id={self.id}, item_id={self.item_id}, user_id={self.user_id}, ts={self.timestamp})"
 
+class BlockchainBlock(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    index = db.Column(db.Integer, nullable=False)
+    timestamp = db.Column(db.Float, nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=True) # Genesis block has no item
+    item_data = db.Column(db.Text, nullable=False) # JSON string of item data
+    previous_hash = db.Column(db.String(64), nullable=False)
+    nonce = db.Column(db.Integer, nullable=False)
+    hash = db.Column(db.String(64), nullable=False)
+
+    item = db.relationship('Item', backref='blockchain_records', foreign_keys=[item_id])
+
+    def __repr__(self):
+        return f"<Block {self.index} - Hash: {self.hash[:8]}...>"
+
 # --- WTForms (Web Forms) ---
 # Forms are defined AFTER models, as they might reference models (e.g., for validation)
 class RegistrationForm(FlaskForm):
@@ -1345,6 +1579,10 @@ def load_user(user_id):
     return user
 
 # --- Routes (Application Logic) ---
+@app.route("/health")
+def health():
+    return "app is live"
+
 @app.route("/")
 @app.route("/home")
 def home():
@@ -1426,6 +1664,8 @@ def report_lost():
                     reporter=current_user)
         db.session.add(item)
         db.session.commit()
+        # Record to blockchain
+        record_to_blockchain(item)
         # Log the report action
         log = ReportLog(user_id=current_user.id, registration_no=current_user.registration_no,
                         action='reported_lost', item_id=item.id,
@@ -1434,14 +1674,26 @@ def report_lost():
         db.session.commit()
         flash('Your lost item report has been submitted!', 'success')
         print(f"DEBUG: Lost item reported by {current_user.registration_no}: {item.item_name}")
+        
+        # After saving, check for matching active found reports
+        matches = find_smart_matches(item)
+        if matches:
+            flash(f'🤖 AI discovered {len(matches)} potential found reports that match your item!', 'info')
+            return redirect(url_for('item_matches', item_id=item.id))
+
         return redirect(url_for('items'))
     return render_template('report_item_modern.html', title='Report Lost Item', form=form, item_type='Lost', protected_keywords=PROTECTED_KEYWORDS)
 
 @app.route("/report_found", methods=['GET', 'POST'])
 @login_required
 def report_found():
+    print(f"DEBUG: Entering report_found. Method: {request.method}")
     form = ReportFoundItemForm()
+    if request.method == 'POST' and not form.validate():
+        print(f"DEBUG: Form validation failed. Errors: {form.errors}")
+        
     if form.validate_on_submit():
+        print(f"DEBUG: Form validated. Item: {form.item_name.data}")
         if 'image' not in request.files:
             flash('No file part', 'danger')
             return redirect(request.url)
@@ -1457,8 +1709,10 @@ def report_found():
             return any(k in ln for k in PROTECTED_KEYWORDS)
 
         if looks_like_protected(form.item_name.data) and not form.phone_confirm.data:
-            flash('This item appears to be a protected or valuable item. Please confirm you have the right to upload this photo, check the confirmation box, and upload a clear close-up photo (portrait or closer framing).', 'warning')
-            return redirect(request.url)
+            print(f"DEBUG: Protected item detected ('{form.item_name.data}') but confirmation missing. Re-rendering form.")
+            flash('Protected/Valuable item detected. Please tick the confirmation box and re-upload your photo to proceed.', 'warning')
+            # Fall through to render_template instead of redirecting to avoid losing the uploaded data
+            return render_template('report_item_modern.html', title='Report Found Item', form=form, item_type='Found', protected_keywords=PROTECTED_KEYWORDS)
 
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
@@ -1498,9 +1752,10 @@ def report_found():
                     from PIL import Image, ImageFilter
                     img = Image.open(file_path)
                     w, h = img.size
-                    # If protected item (e.g., phone/laptop) and image is unusually wide, warn the user
-                    if looks_like_protected(form.item_name.data) and (w > h * 1.5):
-                        # For strict items, reject wide/odd images rather than just warn
+                    # If protected item (e.g., phone/laptop) and image is extremely wide (panorama), warn the user
+                    # Relaxed from 1.5 to 2.5 to allow landscape photos of phones/laptops.
+                    if looks_like_protected(form.item_name.data) and (w > h * 2.5):
+                        # For strict items, reject extremely wide/odd images rather than just warn
                         if any(k in form.item_name.data.lower() for k in PROTECTED_STRICT):
                             # remove saved file
                             try:
@@ -1509,10 +1764,10 @@ def report_found():
                                     print(f"DEBUG: Removed image due to unacceptable aspect ratio: {file_path}")
                             except Exception as e:
                                 print(f"DEBUG: Failed to remove file after aspect rejection: {e}")
-                            flash('The uploaded image is not an acceptable close-up of this protected item. Please upload a clear, portrait/close-up image of the claimed item and try again.', 'warning')
-                            return redirect(request.url)
+                            flash('The uploaded image is too wide/distorted for this protected item. Please upload a clear, central photo of the claimed item and try again.', 'warning')
+                            return render_template('report_item_modern.html', title='Report Found Item', form=form, item_type='Found', protected_keywords=PROTECTED_KEYWORDS)
                         else:
-                            flash('Uploaded image seems unusually wide for this item. Please upload a clear photo (portrait or closer framing).', 'warning')
+                            flash('Uploaded image seems unusually wide. Please upload a clear photo (portrait or closer framing).', 'warning')
 
                     # Additional lightweight check for clarity: compute edge density for strict items when model not available
                     if any(k in form.item_name.data.lower() for k in PROTECTED_STRICT):
@@ -1535,9 +1790,12 @@ def report_found():
                     pass
                 print(f"DEBUG: File saved successfully to: {file_path}")
 
+                # NEW: Pre-run object detection once to share results (Speed Optimization)
+                yolo_detections = detect_with_yolo(file_path)
+
                 # If the item name looks like a protected/valuable type, run server-side verification
                 if looks_like_protected(form.item_name.data):
-                    ok, info = verify_protected_image(form.item_name.data, file_path)
+                    ok, info = verify_protected_image(form.item_name.data, file_path, yolo_dets=yolo_detections)
                     if not ok:
                         # Remove the saved file to avoid storing unverified images
                         try:
@@ -1576,7 +1834,8 @@ def report_found():
                     verified, confidence, details = cross_verify_item(
                         form.item_name.data, 
                         file_path, 
-                        extracted_text=ocr_text
+                        extracted_text=ocr_text,
+                        yolo_dets=yolo_detections
                     )
                     verification_score = confidence
                     verification_details_dict = details
@@ -1592,9 +1851,9 @@ def report_found():
                         try:
                             if os.path.exists(file_path):
                                 os.remove(file_path)
-                                print(f"DEBUG: Removed file due to low confidence/conflict: {file_path}")
+                                print(f"DEBUG: Removed unverified/rejected image: {file_path}")
                         except Exception as e:
-                            print(f"DEBUG: Failed to remove file: {e}")
+                            print(f"DEBUG: Failed to remove rejected file: {e}")
                         
                         # Show detailed error message
                         if conflict_msg:
@@ -1623,6 +1882,8 @@ def report_found():
             # Store verification details as JSON
             import json
             verification_json = json.dumps(verification_details_dict) if verification_details_dict else None
+            
+            print(f"DEBUG: Saving item to DB: {form.item_name.data}")
 
             item = Item(item_name=form.item_name.data,
                         description=form.description.data,
@@ -1635,7 +1896,11 @@ def report_found():
                         verification_details=verification_json,
                         reporter=current_user)
             db.session.add(item)
+            print("DEBUG: Item added to session. Committing...")
             db.session.commit()
+            print(f"DEBUG: Item committed. ID: {item.id}")
+            # Record to blockchain
+            record_to_blockchain(item)
             # Log the found report
             log = ReportLog(user_id=current_user.id, registration_no=current_user.registration_no,
                             action='reported_found', item_id=item.id,
@@ -1643,28 +1908,28 @@ def report_found():
             db.session.add(log)
             db.session.commit()
             # After saving the found report, check for matching active lost reports
-            matching_lost = Item.query.filter(
-                Item.status == 'Lost',
-                Item.is_active == True,
-                Item.item_name.ilike(f"%{item.item_name}%")
-            ).all()
+            matches = find_smart_matches(item)
             points_awarded = 0
-            if matching_lost:
-                # Award 1 point per matched lost report (previously 10 points each)
-                points_awarded = len(matching_lost)
+            if matches:
+                # Award points for potential matches
+                points_awarded = len(matches)
                 current_user.points = (current_user.points or 0) + points_awarded
                 current_user.update_level()
                 db.session.commit()
                 # Log the point award
                 plog = ReportLog(user_id=current_user.id, registration_no=current_user.registration_no,
                                 action='points_awarded', item_id=item.id,
-                                details=f"Awarded {points_awarded} points for matching {len(matching_lost)} lost report(s)")
+                                details=f"Awarded {points_awarded} points for AI smart-matching {len(matches)} lost report(s)")
                 db.session.add(plog)
                 db.session.commit()
 
             flash('Your found item report has been submitted!' + (f" You earned {points_awarded} points!" if points_awarded else ''), 'success')
-            print(f"DEBUG: Found item reported by {current_user.registration_no}: {item.item_name} (Image: {item.image_filename}). Points awarded: {points_awarded}")
+            print(f"DEBUG: Found item reported by {current_user.registration_no}: {item.item_name}. Points awarded: {points_awarded}")
 
+            if matches:
+                flash(f'🤖 AI discovered {len(matches)} potential lost reports that match your item!', 'info')
+                return redirect(url_for('item_matches', item_id=item.id))
+            
             return redirect(url_for('items'))
         else:
             flash(f"Invalid file type. Allowed: {', '.join(app.config['ALLOWED_EXTENSIONS'])}", 'danger')
@@ -1675,20 +1940,29 @@ def report_found():
 def items():
     # Support optional search via ?q=term
     q = request.args.get('q', '').strip()
+    # Support optional filter via ?filter=lost|found
+    f = request.args.get('filter', '').strip().lower()
+    
+    query = Item.query.filter_by(is_active=True)
+    
     if q:
         # Filter by name, description or location (case-insensitive)
         from sqlalchemy import or_
-        active_items = Item.query.filter(
-            Item.is_active == True,
+        query = query.filter(
             or_(
                 Item.item_name.ilike(f"%{q}%"),
                 Item.description.ilike(f"%{q}%"),
                 Item.location.ilike(f"%{q}%")
             )
-        ).order_by(Item.reported_at.desc()).all()
-    else:
-        active_items = Item.query.filter_by(is_active=True).order_by(Item.reported_at.desc()).all()
-    print(f"DEBUG: Displaying {len(active_items)} active items for {current_user.registration_no}. Query='{q}'")
+        )
+    
+    if f == 'lost':
+        query = query.filter_by(status='Lost')
+    elif f == 'found':
+        query = query.filter_by(status='Found')
+
+    active_items = query.order_by(Item.reported_at.desc()).all()
+    print(f"DEBUG: Displaying {len(active_items)} active items (filter='{f}', search='{q}') for {current_user.registration_no}")
     return render_template('item_list.html', title='Lost & Found Items', items=active_items)
 
 @app.route("/item/<int:item_id>", methods=['GET', 'POST'])
@@ -1995,6 +2269,22 @@ def api_extract_text():
             'message': f'Server error: {str(e)}'
         }), 500, {'ContentType': 'application/json'}
 
+@app.route('/api/verify_item/<int:item_id>')
+def api_verify_item(item_id):
+    is_valid, msg = verify_item_blockchain(item_id)
+    return jsonify({
+        'valid': is_valid,
+        'message': msg
+    })
+
+
+@app.route('/item/<int:item_id>/matches')
+@login_required
+def item_matches(item_id):
+    item = Item.query.get_or_404(item_id)
+    matches = find_smart_matches(item)
+    return render_template('item_matches.html', item=item, matches=matches)
+
 
 if __name__ == '__main__':
     with app.app_context():
@@ -2008,40 +2298,7 @@ if __name__ == '__main__':
                 print("Please check file system permissions for your project folder.")
 
         db.create_all() # Creates database tables based on your models
-
-        # Ensure any newly added columns exist in the SQLite 'item' table (useful when adding features)
-        def ensure_item_columns():
-            """Add missing columns to the 'item' table for older databases.
-            This is a lightweight migration helper that runs only when needed.
-            """
-            conn = None
-            try:
-                conn = sqlite3.connect(DB_PATH)
-                cur = conn.cursor()
-                cur.execute("PRAGMA table_info('item')")
-                existing = set(r[1] for r in cur.fetchall())
-                # Desired columns mapped to their SQL definitions
-                desired = {
-                    'ocr_extracted_text': 'TEXT NULL',
-                    'verification_score': 'REAL NULL',
-                    'verification_details': 'TEXT NULL'
-                }
-                for col, definition in desired.items():
-                    if col not in existing:
-                        try:
-                            sql = f"ALTER TABLE item ADD COLUMN {col} {definition};"
-                            cur.execute(sql)
-                            print(f"Startup DEBUG: Added missing column '{col}' to 'item' table.")
-                        except Exception as e:
-                            print(f"Startup ERROR: Failed to add column {col}: {e}")
-                conn.commit()
-            except Exception as e:
-                print(f"Startup ERROR: ensure_item_columns failed: {e}")
-            finally:
-                if conn:
-                    conn.close()
-
-        ensure_item_columns()
+        print("Startup DEBUG: Database tables verified/created.")
 
         # Create default admin and HOD users if they don't exist
         admin_exists = User.query.filter_by(registration_no='ADMIN001').first()
