@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
+
+<div class="container" style="max-width: 450px; margin-top: 4rem;">
+    <div class="card">
+        <div class="card-header border-b border-border/50 pb-4 mb-4 text-center">
+            <h2 class="card-title text-2xl">{{ title }}</h2>
+            <p class="card-description">Welcome back to Lost & Found Portal</p>
+        </div>
+
+        <div class="card-content">
+            <form method="POST" action="">
+                {{ form.hidden_tag() }}
+
+                <div class="form-group mb-4">
+                    {{ form.registration_no.label(class="form-label") }}
+                    {{ form.registration_no(class="form-input", placeholder="e.g. 2023BTECH12345") }}
+                    {% if form.registration_no.errors %}
+                    <div class="text-destructive text-sm mt-1">{{ form.registration_no.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group mb-6">
+                    {{ form.password.label(class="form-label") }}
+                    {{ form.password(class="form-input", placeholder="Your Password") }}
+                    {% if form.password.errors %}
+                    <div class="text-destructive text-sm mt-1">{{ form.password.errors[0] }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    {{ form.submit(class="btn btn-primary w-full btn-lg") }}
+                </div>
+
+                <div class="mt-4 text-center text-sm text-muted">
+                    Need an account? <a href="{{ url_for('register') }}"
+                        class="text-primary font-medium hover:underline">Register Here</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}

@@ -1,0 +1,28 @@
+# Lightweight requirements for Render deployment (without heavy AI dependencies)
+# This allows the app to run on Render's free tier
+
+# Core Flask
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.3
+Flask-WTF==1.1.1
+Flask-Login==0.6.2
+Werkzeug==2.3.7
+
+# Image processing (lightweight)
+Pillow==10.0.1
+
+# Database
+psycopg2-binary
+
+# Environment variables
+python-dotenv
+
+# Production server
+gunicorn
+
+# Password hashing
+passlib
+
+# NOTE: AI features (PyTorch, transformers, ultralytics, easyocr) are excluded
+# to reduce memory usage and deployment time on Render's free tier.
+# The app will run in "basic mode" without AI-powered features.

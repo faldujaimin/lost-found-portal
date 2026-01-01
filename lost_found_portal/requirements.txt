@@ -1,0 +1,21 @@
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.3
+Flask-WTF==1.1.1
+Flask-Login==0.6.2
+Werkzeug==2.3.7
+Pillow==10.0.1
+transformers>=4.30.0
+# NOTE: PyTorch is recommended for CLIP. Install via the official instructions at https://pytorch.org/get-started/locally/
+# Example (CPU-only wheel):
+#   python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# Optional object detection via YOLOv8 (Ultralytics)
+ultralytics>=8.0.0
+opencv-python-headless>=4.7.0
+
+# OCR for text extraction from images (auto-fill feature)
+easyocr>=1.7.0
+psycopg2-binary
+python-dotenv
+gunicorn
+passlib

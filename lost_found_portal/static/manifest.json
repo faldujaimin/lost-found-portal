@@ -1,0 +1,17 @@
+{
+  "name": "Lost & Found Portal",
+  "short_name": "L&F Portal",
+  "description": "Report and find lost or found items with AI and Blockchain verification.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/static/lost_found.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

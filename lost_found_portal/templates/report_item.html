@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="card p-4 themed-panel glass">
+        <h2 class="card-title text-center mb-3">{{ title }}</h2>
+        <form method="POST" action="" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            {{ form.item_name.label(class="form-control-label") }}
+            {{ form.item_name(class="form-control") }}
+            {% if form.item_name.errors %}
+                <div class="alert alert-danger">{{ form.item_name.errors[0] }}</div>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            {{ form.description.label(class="form-control-label") }}
+            {{ form.description(class="form-control") }}
+            {% if form.description.errors %}
+                <div class="alert alert-danger">{{ form.description.errors[0] }}</div>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            {% if item_type == 'Lost' %}
+                {{ form.lost_date.label(class="form-control-label") }}
+                {{ form.lost_date(class="form-control") }}
+                {% if form.lost_date.errors %}
+                    <div class="alert alert-danger">{{ form.lost_date.errors[0] }}</div>
+                {% endif %}
+            {% else %}
+                {{ form.found_date.label(class="form-control-label") }}
+                {{ form.found_date(class="form-control") }}
+                {% if form.found_date.errors %}
+                    <div class="alert alert-danger">{{ form.found_date.errors[0] }}</div>
+                {% endif %}
+            {% endif %}
+        </div>
+        <div class="form-group">
+            {{ form.location.label(class="form-control-label") }}
+            {{ form.location(class="form-control") }}
+            {% if form.location.errors %}
+                <div class="alert alert-danger">{{ form.location.errors[0] }}</div>
+            {% endif %}
+        </div>
+        {% if item_type == 'Found' %}
+            <div class="form-group">
+                {{ form.image.label(class="form-control-label") }}
+                {{ form.image(class="form-control-file", onchange="previewImage(event)") }}
+                {% if form.image.errors %}
+                    <div class="alert alert-danger">{{ form.image.errors[0] }}</div>
+                {% endif %}
+                    <img id="image-preview" src="#" alt="Image Preview" style="max-width: 200px; max-height: 200px; margin-top: 10px; display: none;">
+            </div>
+            <!-- Confirmation banner appears when a protected item is detected -->
+            <div id="confirmation-banner" class="alert alert-warning" style="display:none; margin-bottom:12px; border-radius:10px;">Please confirm the uploaded photo is of the claimed item.</div>
+            <div class="form-group" id="phone-confirm-group" style="display:none;">
+                <div class="form-check">
+                    {{ form.phone_confirm(class_='form-check-input', id='phone_confirm') }}
+                    <label class="form-check-label" for="phone_confirm" id="phone_confirm_label">I confirm this photo shows the item I am reporting</label>
+                </div>
+                <small class="form-text text-muted" id="phone_confirm_note">We require confirmation for protected items to avoid accidental or misleading uploads.</small>
+            </div>
+        {% endif %}
+        <div class="form-group">
+            {{ form.submit(class="btn btn-primary") }}
+        </div>
+        </form>
+    </div>
+    <!-- previewImage handled by static/js/script.js -->
+{% endblock content %}
