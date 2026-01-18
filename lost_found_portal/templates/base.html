@@ -105,10 +105,53 @@
             color: hsl(var(--primary-foreground));
         }
 
+        .nav-link-admin {
+            background: hsl(var(--destructive) / 0.1);
+            color: hsl(var(--destructive));
+            font-weight: 600;
+        }
+
+        .nav-link-admin:hover {
+            background: hsl(var(--destructive) / 0.2);
+            color: hsl(var(--destructive));
+        }
+
+        .nav-divider {
+            width: 1px;
+            height: 24px;
+            background: hsl(var(--border));
+            margin: 0 0.5rem;
+        }
+
         .navbar-actions {
             display: flex;
             align-items: center;
             gap: 0.75rem;
+            margin-left: auto;
+        }
+
+        .user-menu,
+        .auth-buttons {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .user-profile-btn {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid transparent;
+        }
+
+        .btn-ghost:hover {
+            background: hsl(var(--accent));
+            border-color: hsl(var(--border));
         }
 
         /* Search Form */
@@ -256,20 +299,71 @@
             .nav-links {
                 flex-direction: column;
                 width: 100%;
+                gap: 0.5rem;
+            }
+
+            .nav-divider {
+                width: 100%;
+                height: 1px;
+                margin: 0.5rem 0;
             }
 
             .navbar-actions {
                 width: 100%;
-                justify-content: space-between;
+                flex-direction: column;
+                gap: 0.75rem;
             }
 
-            .search-form {
+            .user-menu,
+            .auth-buttons {
                 width: 100%;
+                flex-direction: column;
             }
 
-            .search-form input {
-                flex: 1;
+            .user-menu a,
+            .auth-buttons a {
                 width: 100%;
+                justify-content: center;
+            }
+
+            .user-profile-btn {
+                max-width: 100%;
+            }
+        }
+
+        /* Global Back Button */
+        .global-back-btn {
+            position: fixed;
+            top: 5.5rem;
+            left: 1rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            z-index: 90;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            opacity: 0.8;
+        }
+
+        .global-back-btn:hover {
+            transform: scale(1.1);
+            opacity: 1;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .global-back-btn {
+                top: 5rem;
+                left: 0.75rem;
+                width: 32px;
+                height: 32px;
             }
         }
     </style>
@@ -291,25 +385,66 @@
             </button>
 
             <div class="navbar-menu" id="navbarMenu">
+                {% if current_user.is_authenticated %}
                 <ul class="nav-links">
-                    <li><a class="nav-link" href="{{ url_for('items') }}">View Items</a></li>
-                    {% if current_user.is_authenticated %}
-                    <li><a class="nav-link" href="{{ url_for('report_lost') }}">Report Lost</a></li>
-                    <li><a class="nav-link" href="{{ url_for('report_found') }}">Report Found</a></li>
+                    <li><a class="nav-link" href="{{ url_for('items') }}">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24"
+                                style="display: inline-block; vertical-align: middle; margin-right: 4px;">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z">
+                                </path>
+                            </svg>
+                            Browse
+                        </a></li>
+                    <li><a class="nav-link" href="{{ url_for('report_lost') }}">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24"
+                                style="display: inline-block; vertical-align: middle; margin-right: 4px;">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"></path>
+                            </svg>
+                            Lost
+                        </a></li>
+                    <li><a class="nav-link" href="{{ url_for('report_found') }}">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24"
+                                style="display: inline-block; vertical-align: middle; margin-right: 4px;">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Found
+                        </a></li>
                     {% if current_user.is_admin() or current_user.is_hod() %}
-                    <li><a class="nav-link" href="{{ url_for('item_history') }}">History</a></li>
-                    {% endif %}
+                    <li class="nav-divider"></li>
+                    <li><a class="nav-link nav-link-admin" href="{{ url_for('admin_dashboard') }}">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24"
+                                style="display: inline-block; vertical-align: middle; margin-right: 4px;">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75">
+                                </path>
+                            </svg>
+                            Admin
+                        </a></li>
+                    <li><a class="nav-link" href="{{ url_for('item_history') }}">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24"
+                                style="display: inline-block; vertical-align: middle; margin-right: 4px;">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            History
+                        </a></li>
                     {% endif %}
                 </ul>
+                {% else %}
+                <ul class="nav-links">
+                    <li><a class="nav-link" href="{{ url_for('items') }}">Browse Items</a></li>
+                </ul>
+                {% endif %}
 
                 <div class="navbar-actions">
-                    <!-- Search Form -->
-                    <form class="search-form" method="get" action="{{ url_for('items') }}">
-                        <input class="form-input" type="search" placeholder="Search items..." name="q"
-                            value="{{ request.args.get('q','') }}">
-                        <button class="btn btn-primary btn-sm" type="submit">Search</button>
-                    </form>
-
                     <!-- Theme Toggle -->
                     <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"
                         title="Toggle dark mode">
@@ -318,12 +453,24 @@
 
                     <!-- User Menu -->
                     {% if current_user.is_authenticated %}
-                    <a class="btn btn-outline btn-sm" href="{{ url_for('profile') }}">{{ current_user.full_name
-                        }}</a>
-                    <a class="btn btn-secondary btn-sm" href="{{ url_for('logout') }}">Logout</a>
+                    <div class="user-menu">
+                        <a class="btn btn-ghost btn-sm user-profile-btn" href="{{ url_for('profile') }}">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24"
+                                style="display: inline-block; vertical-align: middle; margin-right: 6px;">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z">
+                                </path>
+                            </svg>
+                            {{ current_user.full_name }}
+                        </a>
+                        <a class="btn btn-secondary btn-sm" href="{{ url_for('logout') }}">Logout</a>
+                    </div>
                     {% else %}
-                    <a class="btn btn-outline btn-sm" href="{{ url_for('login') }}">Login</a>
-                    <a class="btn btn-primary btn-sm" href="{{ url_for('register') }}">Register</a>
+                    <div class="auth-buttons">
+                        <a class="btn btn-outline btn-sm" href="{{ url_for('login') }}">Login</a>
+                        <a class="btn btn-primary btn-sm" href="{{ url_for('register') }}">Register</a>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -345,6 +492,13 @@
     <main class="main-content">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- Global Floating Back Button -->
+    <button onclick="history.back()" class="global-back-btn" title="Go Back" aria-label="Go Back">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"></path>
+        </svg>
+    </button>
 
     <!-- Footer -->
     <footer class="footer">

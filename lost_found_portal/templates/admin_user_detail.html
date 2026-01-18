@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center gap-4">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Dashboard
+            </a>
+        </div>
+        <h1 class="text-3xl font-bold mt-4">User Details</h1>
+    </div>
+
+    <!-- User Info Card -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h2 class="text-xl font-semibold">User Information</h2>
+        </div>
+        <div class="card-content">
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <div class="mb-4">
+                        <label class="text-sm text-muted">Registration Number</label>
+                        <div class="text-lg font-semibold">{{ user.registration_no }}</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="text-sm text-muted">Full Name</label>
+                        <div class="text-lg font-semibold">{{ user.full_name }}</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="text-sm text-muted">Email</label>
+                        <div class="text-lg">{{ user.email or 'Not provided' }}</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="mb-4">
+                        <label class="text-sm text-muted">Role</label>
+                        <div>
+                            {% if user.role == 'admin' %}
+                            <span class="badge badge-destructive">Admin</span>
+                            {% elif user.role == 'hod' %}
+                            <span class="badge badge-warning">HOD</span>
+                            {% else %}
+                            <span class="badge badge-primary">Student</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="text-sm text-muted">Points</label>
+                        <div class="text-lg font-semibold text-primary">{{ user.points or 0 }}</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="text-sm text-muted">Level</label>
+                        <div>
+                            <span class="badge badge-success">{{ user.level }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="card">
+            <div class="card-content text-center">
+                <div class="text-2xl font-bold text-primary">{{ items | length }}</div>
+                <div class="text-sm text-muted mt-1">Total Reports</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-content text-center">
+                <div class="text-2xl font-bold text-success">{{ items | selectattr('is_active') | list | length }}</div>
+                <div class="text-sm text-muted mt-1">Active Items</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-content text-center">
+                <div class="text-2xl font-bold text-warning">{{ logs | length }}</div>
+                <div class="text-sm text-muted mt-1">Total Actions</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reported Items -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h2 class="text-xl font-semibold">Reported Items</h2>
+        </div>
+        <div class="card-content" style="padding: 0; overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background: hsl(var(--muted) / 0.5); border-bottom: 2px solid hsl(var(--border));">
+                    <tr>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">ID</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Item Name</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Status</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Location</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Date</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">State</th>
+                        <th style="padding: 0.75rem; text-align: center; font-weight: 600;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr
+                        style="border-bottom: 1px solid hsl(var(--border)); {% if not item.is_active %}background: hsl(var(--destructive) / 0.05);{% endif %}">
+                        <td style="padding: 0.75rem;">{{ item.id }}</td>
+                        <td style="padding: 0.75rem;">
+                            <div class="font-medium">{{ item.item_name }}</div>
+                            <div class="text-xs text-muted">{{ item.description | truncate(40) }}</div>
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            {% if item.status == 'Found' %}
+                            <span class="badge badge-success">Found</span>
+                            {% else %}
+                            <span class="badge badge-warning">Lost</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem;">{{ item.location | truncate(30) }}</td>
+                        <td style="padding: 0.75rem;">{{ item.lost_found_date.strftime('%b %d, %Y') }}</td>
+                        <td style="padding: 0.75rem;">
+                            {% if item.is_active %}
+                            <span class="badge badge-success">Active</span>
+                            {% else %}
+                            <span class="badge badge-destructive">Archived</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn btn-sm btn-outline">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="padding: 2rem; text-align: center;">
+                            <p class="text-muted">No items reported by this user</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Activity Logs -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h2 class="text-xl font-semibold">Activity Logs</h2>
+        </div>
+        <div class="card-content" style="padding: 0; overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background: hsl(var(--muted) / 0.5); border-bottom: 2px solid hsl(var(--border));">
+                    <tr>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Timestamp</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Action</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Item ID</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr style="border-bottom: 1px solid hsl(var(--border));">
+                        <td style="padding: 0.75rem;">
+                            <div class="text-sm">{{ log.timestamp.strftime('%b %d, %Y') }}</div>
+                            <div class="text-xs text-muted">{{ log.timestamp.strftime('%H:%M:%S') }}</div>
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            {% if log.action == 'reported_lost' %}
+                            <span class="badge badge-warning">Reported Lost</span>
+                            {% elif log.action == 'reported_found' %}
+                            <span class="badge badge-success">Reported Found</span>
+                            {% elif log.action == 'deleted' %}
+                            <span class="badge badge-destructive">Deleted</span>
+                            {% elif log.action == 'message_posted' %}
+                            <span class="badge badge-primary">Message</span>
+                            {% elif log.action == 'points_awarded' %}
+                            <span class="badge" style="background: gold; color: black;">Points</span>
+                            {% else %}
+                            <span class="badge">{{ log.action }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            {% if log.item_id %}
+                            <a href="{{ url_for('item_detail', item_id=log.item_id) }}"
+                                class="text-primary hover:underline">
+                                #{{ log.item_id }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem;">{{ log.details | truncate(80) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="padding: 2rem; text-align: center;">
+                            <p class="text-muted">No activity logs found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Auth Logs -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="text-xl font-semibold">Authentication Logs</h2>
+        </div>
+        <div class="card-content" style="padding: 0; overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background: hsl(var(--muted) / 0.5); border-bottom: 2px solid hsl(var(--border));">
+                    <tr>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Timestamp</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Action</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600;">IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for auth_log in auth_logs %}
+                    <tr style="border-bottom: 1px solid hsl(var(--border));">
+                        <td style="padding: 0.75rem;">
+                            <div class="text-sm">{{ auth_log.timestamp.strftime('%b %d, %Y') }}</div>
+                            <div class="text-xs text-muted">{{ auth_log.timestamp.strftime('%H:%M:%S') }}</div>
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            {% if auth_log.action == 'login' %}
+                            <span class="badge badge-success">Login</span>
+                            {% else %}
+                            <span class="badge badge-warning">Logout</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            <span class="text-sm font-mono">{{ auth_log.ip_address or 'N/A' }}</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" style="padding: 2rem; text-align: center;">
+                            <p class="text-muted">No authentication logs found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    tbody tr:hover {
+        background: hsl(var(--muted) / 0.3);
+        transition: var(--transition-fast);
+    }
+
+    @media (max-width: 768px) {
+
+        .grid-cols-2,
+        .grid-cols-3 {
+            grid-template-columns: 1fr !important;
+        }
+
+        table {
+            font-size: 0.875rem;
+        }
+
+        th,
+        td {
+            padding: 0.5rem !important;
+        }
+    }
+</style>
+{% endblock %}

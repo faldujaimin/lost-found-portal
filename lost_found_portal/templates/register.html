@@ -3,6 +3,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modern.css') }}">
 
 <div class="container" style="max-width: 550px; margin-top: 4rem;">
+    <div class="mb-4">
+        <button onclick="history.back()"
+            class="btn btn-ghost btn-sm flex items-center gap-2 text-muted-foreground hover:text-foreground pl-0">
+            ← Back
+        </button>
+    </div>
     <div class="card">
         <div class="card-header border-b border-border/50 pb-4 mb-4 text-center">
             <h2 class="card-title text-2xl">Create Account</h2>

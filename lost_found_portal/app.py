@@ -1342,7 +1342,7 @@ class Item(db.Model):
     item_name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(10), default='Lost', nullable=False) # 'Lost', 'Found', 'Reclaimed'
-    reported_at = db.Column(db.DateTime, default=datetime.utcnow) # Timestamp when reported
+    reported_at = db.Column(db.DateTime, default=datetime.now) # Timestamp when reported
     lost_found_date = db.Column(db.Date, nullable=False) # Date item was lost or found
     location = db.Column(db.String(200), nullable=False)
     image_filename = db.Column(db.String(255), nullable=True) # Stores filename for found items
@@ -1449,7 +1449,7 @@ class ReportLog(db.Model):
     registration_no = db.Column(db.String(20), nullable=True)
     action = db.Column(db.String(50), nullable=False)  # e.g., 'reported_lost', 'reported_found', 'deleted'
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
     details = db.Column(db.Text, nullable=True)
 
     user = db.relationship('User', backref='logs', foreign_keys=[user_id])
@@ -1459,15 +1459,14 @@ class ReportLog(db.Model):
     def __repr__(self):
         # Helpful representation for debugging in the shell or logs
         return f"ReportLog(id={self.id}, reg_no={self.registration_no}, action={self.action}, item_id={self.item_id}, ts={self.timestamp})"
-def india_now():
-    return datetime.now(TZ_INDIA) if TZ_INDIA else datetime.utcnow()
+
 
 class AuthLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     registration_no = db.Column(db.String(20), nullable=True)
     action = db.Column(db.String(20), nullable=False)  # 'login' or 'logout'
-    timestamp = db.Column(db.DateTime, nullable=False, default=lambda: india_now())
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.now)
     ip_address = db.Column(db.String(45), nullable=True)
 
     user = db.relationship('User', backref='auth_logs', foreign_keys=[user_id])
@@ -1479,7 +1478,7 @@ class AuthLog(db.Model):
         al = AuthLog(user_id=user.id if user else None,
                     registration_no=(user.registration_no if user else None),
                     action=action,
-                    timestamp= india_now(),
+                    timestamp= datetime.now(),
                     ip_address=ip)
         db.session.add(al)
         db.session.commit()
@@ -1492,7 +1491,7 @@ class Message(db.Model):
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
 
     user = db.relationship('User', backref='messages', foreign_keys=[user_id])
     item = db.relationship('Item', backref='messages', foreign_keys=[item_id])
@@ -2015,7 +2014,7 @@ def items():
 def item_detail(item_id):
     item = db.session.get(Item, item_id)
     if item is None:
-        # Item missing  return 404 to the user
+        # Item missing return 404 to the user
         print(f"DEBUG: Item with ID {item_id} not found for detail view.")
         return render_template('404.html', title='Item Not Found'), 404
 
@@ -2108,6 +2107,163 @@ def internal_server_error(error):
     
     # Return a user-friendly error page
     return render_template('500.html', title='Server Error'), 500
+
+# =====================================================
+# Admin Panel Routes
+# =====================================================
+
+@app.route("/admin")
+@app.route("/admin/dashboard")
+@login_required
+def admin_dashboard():
+    """Admin dashboard with user management, transactions, and analytics"""
+    # Only admin or hod can access
+    if not (current_user.is_admin() or current_user.is_hod()):
+        flash('You do not have permission to access the admin panel.', 'danger')
+        print(f"DEBUG: User {current_user.registration_no} (Role: {current_user.role}) attempted unauthorized access to admin panel.")
+        return redirect(url_for('items'))
+    
+    # Get all users
+    users = User.query.order_by(User.id.desc()).all()
+    
+    # Get all transactions (report logs)
+    transactions = ReportLog.query.order_by(ReportLog.timestamp.desc()).limit(100).all()
+    
+    # Get all items
+    items = Item.query.order_by(Item.reported_at.desc()).all()
+    
+    # Calculate statistics
+    stats = {
+        'total_users': User.query.count(),
+        'active_items': Item.query.filter_by(is_active=True).count(),
+        'total_transactions': ReportLog.query.count(),
+        'archived_items': Item.query.filter_by(is_active=False).count()
+    }
+    
+    # Calculate analytics
+    from datetime import timedelta
+    from sqlalchemy import func
+    
+    students_count = User.query.filter_by(role='student').count()
+    admins_count = User.query.filter_by(role='admin').count()
+    hods_count = User.query.filter_by(role='hod').count()
+    
+    # Average points
+    avg_points_result = db.session.query(func.avg(User.points)).scalar()
+    avg_points = avg_points_result if avg_points_result else 0
+    
+    # Lost vs Found
+    lost_items = Item.query.filter_by(status='Lost', is_active=True).count()
+    found_items = Item.query.filter_by(status='Found', is_active=True).count()
+    
+    # Items this week
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    items_this_week = Item.query.filter(Item.reported_at >= week_ago).count()
+    
+    # Match rate (simplified - items with messages as proxy for matches)
+    total_active = Item.query.filter_by(is_active=True).count()
+    items_with_messages = db.session.query(Item.id).join(Message).filter(Item.is_active == True).distinct().count()
+    match_rate = int((items_with_messages / total_active * 100)) if total_active > 0 else 0
+    
+    # Top contributors
+    top_contributors = db.session.query(
+        User,
+        func.count(Item.id).label('items_count')
+    ).join(Item, Item.reported_by_id == User.id).group_by(User.id).order_by(
+        func.count(Item.id).desc()
+    ).limit(5).all()
+    
+    top_contributors_list = []
+    for user, count in top_contributors:
+        top_contributors_list.append({
+            'full_name': user.full_name,
+            'registration_no': user.registration_no,
+            'items_count': count,
+            'points': user.points or 0
+        })
+    
+    analytics = {
+        'students_count': students_count,
+        'admins_count': admins_count,
+        'hods_count': hods_count,
+        'avg_points': avg_points,
+        'lost_items': lost_items,
+        'found_items': found_items,
+        'match_rate': match_rate,
+        'items_this_week': items_this_week,
+        'top_contributors': top_contributors_list
+    }
+    
+    print(f"DEBUG: Admin dashboard accessed by {current_user.registration_no}. Showing {len(users)} users, {len(transactions)} transactions.")
+    
+    return render_template('admin_dashboard.html', 
+                         title='Admin Dashboard',
+                         users=users,
+                         transactions=transactions,
+                         items=items,
+                         stats=stats,
+                         analytics=analytics)
+
+
+@app.route("/admin/user/<int:user_id>")
+@login_required
+def admin_user_detail(user_id):
+    """View detailed information about a specific user"""
+    if not (current_user.is_admin() or current_user.is_hod()):
+        abort(403)
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Get user's items
+    user_items = Item.query.filter_by(reported_by_id=user.id).order_by(Item.reported_at.desc()).all()
+    
+    # Get user's logs
+    user_logs = ReportLog.query.filter_by(user_id=user.id).order_by(ReportLog.timestamp.desc()).limit(50).all()
+    
+    # Get user's auth logs
+    user_auth_logs = AuthLog.query.filter_by(user_id=user.id).order_by(AuthLog.timestamp.desc()).limit(20).all()
+    
+    return render_template('admin_user_detail.html',
+                         title=f'User: {user.full_name}',
+                         user=user,
+                         items=user_items,
+                         logs=user_logs,
+                         auth_logs=user_auth_logs)
+
+
+@app.route("/admin/user/<int:user_id>/role", methods=['POST'])
+@login_required
+def admin_change_user_role(user_id):
+    """Change a user's role (admin only)"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Only admins can change user roles'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    
+    data = request.get_json()
+    new_role = data.get('role', '').lower()
+    
+    if new_role not in ['student', 'admin', 'hod']:
+        return jsonify({'success': False, 'message': 'Invalid role'}), 400
+    
+    old_role = user.role
+    user.role = new_role
+    db.session.commit()
+    
+    # Log the role change
+    log = ReportLog(
+        user_id=current_user.id,
+        registration_no=current_user.registration_no,
+        action='role_changed',
+        details=f"Changed {user.registration_no}'s role from {old_role} to {new_role}"
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    print(f"DEBUG: Admin {current_user.registration_no} changed user {user.registration_no} role from {old_role} to {new_role}")
+    
+    return jsonify({'success': True, 'message': f'Role updated to {new_role}'})
+
 
 @app.route("/history", methods=['GET', 'POST'])
 @login_required

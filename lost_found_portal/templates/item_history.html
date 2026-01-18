@@ -32,10 +32,13 @@
             <table style="width: 100%; border-collapse: collapse;">
                 <thead style="background: hsl(var(--muted) / 0.5); border-bottom: 2px solid hsl(var(--border));">
                     <tr>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">ID</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Item</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">
                             Description</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Status
+                        </th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Image
                         </th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Date</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Location
@@ -56,6 +59,9 @@
                     {% for item in items %}
                     <tr
                         style="border-bottom: 1px solid hsl(var(--border)); {% if not item.is_active %}background: hsl(var(--destructive) / 0.05);{% endif %}">
+                        <td style="padding: 0.75rem;">
+                            <span class="font-mono text-sm">#{{ item.id }}</span>
+                        </td>
                         <td style="padding: 0.75rem;">
                             <div class="font-semibold text-sm">{{ item.item_name }}</div>
                             {% if item.verification_score %}
@@ -78,6 +84,16 @@
                             <span class="badge badge-success">Found</span>
                             {% else %}
                             <span class="badge badge-warning">Lost</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            {% if item.image_filename %}
+                            <img src="{{ url_for('static', filename='uploads/' + item.image_filename) }}"
+                                alt="Item image"
+                                style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; cursor: pointer;"
+                                onclick="window.open(this.src, '_blank')">
+                            {% else %}
+                            <span class="text-muted text-xs">No image</span>
                             {% endif %}
                         </td>
                         <td style="padding: 0.75rem;">
@@ -119,7 +135,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="10" style="padding: 3rem; text-align: center;">
+                        <td colspan="12" style="padding: 3rem; text-align: center;">
                             <div style="opacity: 0.3; margin-bottom: 1rem;">
                                 <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"
                                     viewBox="0 0 24 24" style="margin: 0 auto;">
@@ -191,4 +207,5 @@
         transition: var(--transition-fast);
     }
 </style>
+
 {% endblock content %}
