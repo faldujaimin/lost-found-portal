@@ -2,8 +2,8 @@
 {% block content %}
 <div class="container">
     <div class="mb-6">
-        <h1 class="text-2xl font-bold">Item History</h1>
-        <p class="text-muted">Complete archive of all reported items (Admin/HOD only)</p>
+        <h1 class="text-2xl font-bold">{{ _('Item History') }}</h1>
+        <p class="text-muted">{{ _('Complete archive of all reported items (Admin/HOD only)') }}</p>
     </div>
 
     <!-- Filter Options -->
@@ -12,15 +12,15 @@
             <div class="flex gap-2 flex-wrap">
                 <a href="{{ url_for('item_history') }}"
                     class="btn btn-sm {% if not request.args.get('status') %}btn-primary{% else %}btn-outline{% endif %}">
-                    All Items
+                    {{ _('All Items') }}
                 </a>
                 <a href="{{ url_for('item_history', status='active') }}"
                     class="btn btn-sm {% if request.args.get('status') == 'active' %}btn-primary{% else %}btn-outline{% endif %}">
-                    Active Only
+                    {{ _('Active Only') }}
                 </a>
                 <a href="{{ url_for('item_history', status='archived') }}"
                     class="btn btn-sm {% if request.args.get('status') == 'archived' %}btn-primary{% else %}btn-outline{% endif %}">
-                    Archived Only
+                    {{ _('Archived Only') }}
                 </a>
             </div>
         </div>
@@ -32,26 +32,34 @@
             <table style="width: 100%; border-collapse: collapse;">
                 <thead style="background: hsl(var(--muted) / 0.5); border-bottom: 2px solid hsl(var(--border));">
                     <tr>
-                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">ID</th>
-                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Item</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
+                            _('ID') }}</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
+                            _('Item') }}</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">
-                            Description</th>
-                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Status
+                            {{ _('Description') }}</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
+                            _('Status') }}
                         </th>
-                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Image
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
+                            _('Image') }}
                         </th>
-                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Date</th>
-                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Location
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
+                            _('Date') }}</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
+                            _('Location') }}
                         </th>
-                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Reported
-                            By</th>
-                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Reported
-                            At</th>
-                        <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.875rem;">State
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
+                            _('Reported By') }}</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
+                            _('Reported At') }}</th>
+                        <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.875rem;">{{
+                            _('State') }}
                         </th>
-                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">Deleted
-                            Info</th>
-                        <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.875rem;">Actions
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
+                            _('Deleted Info') }}</th>
+                        <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.875rem;">{{
+                            _('Actions') }}
                         </th>
                     </tr>
                 </thead>
@@ -93,7 +101,7 @@
                                 style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; cursor: pointer;"
                                 onclick="window.open(this.src, '_blank')">
                             {% else %}
-                            <span class="text-muted text-xs">No image</span>
+                            <span class="text-muted text-xs">{{ _('No image') }}</span>
                             {% endif %}
                         </td>
                         <td style="padding: 0.75rem;">

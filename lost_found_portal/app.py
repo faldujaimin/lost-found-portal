@@ -1,15 +1,15 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, jsonify
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, send_file, make_response
 from flask import abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash
 from passlib.context import CryptContext
-from datetime import datetime
+from datetime import datetime, timedelta, date
 import os
 import sqlite3
 import shutil
 from datetime import datetime as _dt
-from sqlalchemy import event
+from sqlalchemy import event, func, extract
 from sqlalchemy.engine import Engine
 from werkzeug.utils import secure_filename
 from flask_wtf import FlaskForm
@@ -20,6 +20,40 @@ from flask_wtf.file import FileAllowed
 from config import Config
 from blockchain import Blockchain, Block
 import json
+import io
+import csv
+from collections import defaultdict, Counter
+try:
+    from flask_babel import Babel, gettext as _, lazy_gettext as _l, format_date, format_datetime
+    BABEL_AVAILABLE = True
+except ImportError:
+    BABEL_AVAILABLE = False
+    print("WARNING: Flask-Babel not installed. Multi-language support disabled.")
+    # Fallback: define dummy functions
+    def _(s, **kwargs): return s % kwargs if kwargs else s
+    def _l(s): return s
+    def format_date(d, format=None): return d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d)
+    def format_datetime(dt, format=None): return dt.strftime('%Y-%m-%d %H:%M:%S') if hasattr(dt, 'strftime') else str(dt)
+
+
+
+try:
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    print("WARNING: ReportLab not installed. PDF export disabled.")
+
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+    print("WARNING: Pandas not installed. Advanced analytics disabled.")
 
 """
 Lost & Found Portal (Flask)
@@ -80,7 +114,12 @@ PROTECTED_KEYWORDS = [
     'cable','wire','bottle','water bottle','mouse','file','files','document','documents','chain',
     'necklace','handsfree','hands-free','headphone','headphones','earphones','earbuds','head set','head-set'
 ]
- 
+# Items that should trigger strict rejection if the photo is bad/distorted
+PROTECTED_STRICT = [
+    'phone', 'mobile', 'cell phone', 'iphone', 'android', 'samsung', 'xiaomi', 'pixel',
+    'laptop', 'macbook', 'notebook', 'wallet', 'purse', 'id card', 'card', 'id'
+]
+
 app = Flask(__name__)
 app.config.from_object(Config)
 
@@ -92,8 +131,9 @@ if not ENABLE_AI:
 else:
     print("INFO: AI features are ENABLED. Models will load on demand.")
 
-# Register Jinja2 filters
+# Register Jinja2 filters and globals
 app.jinja_env.filters['fromjson'] = json.loads
+app.jinja_env.globals.update(format_date=format_date, format_datetime=format_datetime)
 
 # Ensure the upload folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
@@ -103,6 +143,35 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 
 # Initialize SQLAlchemy with the Flask app instance
 db = SQLAlchemy(app)
+
+# Initialize Flask-Babel for multi-language support
+if BABEL_AVAILABLE:
+    def get_locale():
+        """Select language based on user preference or browser settings"""
+        # 1. Check if user is logged in and has a preference
+        if current_user and hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+            if hasattr(current_user, 'preferred_language') and current_user.preferred_language:
+                return current_user.preferred_language
+        
+        # 2. Check session override
+        if 'language' in request.args:
+            lang = request.args.get('language')
+            if lang in app.config.get('BABEL_SUPPORTED_LOCALES', ['en']):
+                from flask import session
+                session['language'] = lang
+                return lang
+        
+        from flask import session
+        if 'language' in session:
+            return session.get('language')
+        
+        # 3. Auto-detect from browser Accept-Language header
+        return request.accept_languages.best_match(app.config.get('BABEL_SUPPORTED_LOCALES', ['en'])) or 'en'
+
+    babel = Babel(app, locale_selector=get_locale)
+    
+    print("INFO: Flask-Babel initialized for multi-language support")
+
 # Ensure SQLite uses sensible pragmas for durability and concurrency.
 # This sets WAL journal mode, enables foreign keys, and sets synchronous to NORMAL
 # so commits are durable but not excessively slow. It applies only to SQLite connections.
@@ -346,19 +415,41 @@ def clip_verify(item_name, file_path, threshold=None):
                 candidates.append(tok)
         
         # Add a set of common object classes to serve as negatives/comparators
-        # This prevents 100% confidence when there is only 1 candidate
+        # Refined to avoid competition with claimed item's category
         common_objects = [
-            'cell phone', 'smartphone', 'laptop', 'computer', 
-            'backpack', 'bag', 'handbag', 'wallet', 'purse',
-            'keys', 'keychain', 'watch', 'wrist watch',
-            'headphones', 'earbuds', 'water bottle', 'umbrella',
-            'id card', 'credit card', 'glasses', 'sunglasses',
-            'book', 'notebook', 'shoe', 'clothing', 'powerbank',
-            'pendrive', 'usb flash drive', 'flash drive', 'calculator'
+            'cell phone', 'laptop', 'backpack', 'bag', 'wallet', 
+            'keys', 'watch', 'headphones', 'bottle', 'umbrella',
+            'id card', 'glasses', 'book', 'shoe', 'clothing', 
+            'charger', 'calculator', 'trash', 'floor', 'hand'
         ]
         
+        # Determine claimed categories to filter synonyms from negatives
+        object_categories = {
+            'phone': ['phone', 'mobile', 'cell', 'smartphone', 'iphone', 'android'],
+            'laptop': ['laptop', 'computer', 'notebook', 'macbook'],
+            'bag': ['bag', 'backpack', 'handbag', 'purse', 'suitcase', 'luggage', 'tote'],
+            'wallet': ['wallet', 'purse'],
+            'watch': ['watch', 'clock', 'wristwatch', 'smartwatch', 'iwatch'],
+            'keys': ['keys', 'key'],
+            'card': ['card', 'id', 'license', 'student id'],
+            'book': ['book', 'notebook', 'textbook', 'folder'],
+            'glasses': ['glasses', 'sunglasses', 'spectacles']
+        }
+        
+        claimed_cats = set()
+        for cat, kws in object_categories.items():
+            if any(kw in name.lower() for kw in kws):
+                claimed_cats.add(cat)
+        
         for obj in common_objects:
-            if obj not in candidates and obj not in name.lower():
+            # Skip negatives that belong to the same category as the claimed item
+            is_synonym = False
+            for cat in claimed_cats:
+                if any(kw in obj for kw in object_categories[cat]):
+                    is_synonym = True
+                    break
+            
+            if not is_synonym and obj not in candidates and obj not in name.lower():
                 candidates.append(obj)
 
         inputs = processor(text=candidates, images=img, return_tensors="pt", padding=True)
@@ -367,15 +458,14 @@ def clip_verify(item_name, file_path, threshold=None):
             probs = outputs.logits_per_image.softmax(dim=1)[0]
         
         # Get score for the user's item name (or best matching part of it)
-        # We look for the index of the candidate that matches the item_name (or is a part of it)
-        user_candidate_indices = [i for i, c in enumerate(candidates) if c in name or name in c]
+        user_candidate_indices = [i for i, c in enumerate(candidates) if c.lower() in name.lower() or name.lower() in c.lower()]
         
         if not user_candidate_indices:
-             # Should happen rarely as we added name to candidates
              user_candidate_indices = [0]
              
-        # The score for the "claimed item" is the max probability among its variations
-        claimed_score = max([float(probs[i]) for i in user_candidate_indices])
+        # Sum probabilities of all candidates that match the item name
+        # This handles 'bag' and 'gray bag' both being candidates
+        claimed_score = sum([float(probs[i]) for i in user_candidate_indices])
         
         # find best match overall
         best_idx = int(probs.argmax())
@@ -384,8 +474,10 @@ def clip_verify(item_name, file_path, threshold=None):
         
         print(f"DEBUG: CLIP: best match '{best_label}' score={best_score:.3f}, claimed '{item_name}' score={claimed_score:.3f}")
         
-        # We return the score of the CLAIMED item, but validity is based on whether it's close to the best match
-        if claimed_score >= threshold and (claimed_score >= best_score * 0.8):
+        # We return the score of the CLAIMED item
+        # Relaxed threshold: if claimed score is decent OR it's the best match
+        clip_threshold = threshold
+        if claimed_score >= clip_threshold or (best_idx in user_candidate_indices):
             return (True, f"CLIP matched '{name}' ({claimed_score:.2f})", best_label, claimed_score)
         else:
             return (False, f"CLIP found '{best_label}' ({best_score:.2f}) instead of '{name}'", best_label, claimed_score)
@@ -489,14 +581,17 @@ def api_analyze_image():
         except Exception as e:
             print(f"CLIP analysis failed: {e}")
             
-        # Cleanup
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-            
         return jsonify(results)
-        
     except Exception as e:
+        print(f"ERROR: api_analyze_image failed: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        # Cleanup
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except:
+                pass
 
 
 
@@ -1215,16 +1310,29 @@ def cross_verify_item(item_name, file_path, extracted_text=None, yolo_dets=None)
         # Check if detected objects conflict with claimed category
         if claimed_category:
             detected_category = None
+            # Get all categories matched by claimed keywords to handle overlaps (like purse = bag/wallet)
+            claimed_keyword_categories = set()
+            for cat, kws in object_categories.items():
+                if any(kw in item_name_lower for kw in kws):
+                    claimed_keyword_categories.add(cat)
+
             for obj in detected_objects:
-                for category, keywords in object_categories.items():
-                    if category != claimed_category and any(kw in obj for kw in keywords):
-                        detected_category = category
-                        conflict_penalty = 0.7  # Heavy penalty for mismatched category
-                        details['conflict'] = f'Claimed {claimed_category} but detected {category}'
-                        print(f"DEBUG: CONFLICT DETECTED - Claimed: {claimed_category}, Detected: {category}")
+                obj_categories = set()
+                for cat, kws in object_categories.items():
+                    if any(kw in obj for kw in kws):
+                        obj_categories.add(cat)
+                
+                # If the detected object has categories, and NONE of them match ANY of the claimed categories
+                # then it's a conflict. (e.g., claimed 'bag', detected 'phone')
+                if obj_categories and not (obj_categories & claimed_keyword_categories):
+                    # Only penalize if YOLO is confident about this specific conflicting object
+                    # and the claimed object was NOT detected with decent confidence
+                    yolo_score = details.get('yolo_score', 0)
+                    if yolo_score < 0.3: # Claimed object not found or very weak in YOLO
+                        conflict_penalty = 0.7
+                        details['conflict'] = f"Claimed {claimed_category} but YOLO detected {', '.join(obj_categories)}"
+                        print(f"DEBUG: CONFLICT DETECTED - Claimed: {claimed_category}, Detected: {obj_categories}")
                         break
-                if detected_category:
-                    break
     
     if details['ocr_score'] > 0:
         weighted_sum += details['ocr_score'] * ocr_weight
@@ -1286,20 +1394,20 @@ def find_smart_matches(target_item):
         # 1. Name Similarity
         if target_name == name:
             score += 0.8
-            reasons.append("Exact name match")
+            reasons.append(_("Exact name match"))
         else:
             intersection = target_tags.intersection(item_tags)
             if intersection:
                 overlap = len(intersection) / max(len(target_tags), len(item_tags))
                 if overlap > 0.3:
                     score += 0.5
-                    reasons.append(f"Keyword match: {', '.join(intersection)}")
+                    reasons.append(_("Keyword match: %(keywords)s", keywords=', '.join(intersection)))
             
         # 2. Location Match
         if target_item.location and item.location:
             if target_item.location.lower() == item.location.lower():
                 score += 0.3
-                reasons.append("Same location reported")
+                reasons.append(_("Same location reported"))
             
         # 3. Date Proximity
         if target_item.lost_found_date and item.lost_found_date:
@@ -1307,7 +1415,7 @@ def find_smart_matches(target_item):
             if diff <= 7:
                 date_score = 0.2 * (1 - (diff / 7))
                 score += date_score
-                reasons.append(f"Dates match within {diff} days")
+                reasons.append(_("Dates match within %(diff)d days", diff=diff))
 
         # 4. AI-Detection Match
         try:
@@ -1319,7 +1427,7 @@ def find_smart_matches(target_item):
                 label_overlap = target_labels.intersection(item_labels)
                 if label_overlap:
                     score += 0.4
-                    reasons.append(f"AI detected similar objects: {', '.join(label_overlap)}")
+                    reasons.append(_("AI detected similar objects: %(labels)s", labels=', '.join(label_overlap)))
         except Exception:
             pass
         
@@ -1332,6 +1440,164 @@ def find_smart_matches(target_item):
             
     matches.sort(key=lambda x: x['score'], reverse=True)
     return matches[:5]
+
+
+# --- Analytics Helper Functions ---
+def generate_daily_analytics(target_date=None):
+    """Generate analytics data for a specific date (defaults to today)"""
+    if target_date is None:
+        target_date = date.today()
+    
+    # Check if analytics already exist for this date
+    existing = Analytics.query.filter_by(date=target_date).first()
+    if existing:
+        return existing
+    
+    # Calculate date range
+    start_datetime = datetime.combine(target_date, datetime.min.time())
+    end_datetime = datetime.combine(target_date, datetime.max.time())
+    
+    # Count items reported on this date
+    items_lost = Item.query.filter(
+        Item.status == 'Lost',
+        Item.reported_at >= start_datetime,
+        Item.reported_at <= end_datetime
+    ).count()
+    
+    items_found = Item.query.filter(
+        Item.status == 'Found',
+        Item.reported_at >= start_datetime,
+        Item.reported_at <= end_datetime
+    ).count()
+    
+    items_returned = Item.query.filter(
+        Item.status == 'Reclaimed',
+        Item.reported_at >= start_datetime,
+        Item.reported_at <= end_datetime
+    ).count()
+    
+    # Count new users
+    new_users = User.query.filter(
+        User.created_at >= start_datetime,
+        User.created_at <= end_datetime
+    ).count() if hasattr(User, 'created_at') else 0
+    
+    # Count active users (logged in today)
+    active_users = AuthLog.query.filter(
+        AuthLog.action == 'login',
+        AuthLog.timestamp >= start_datetime,
+        AuthLog.timestamp <= end_datetime
+    ).distinct(AuthLog.user_id).count()
+    
+    total_logins = AuthLog.query.filter(
+        AuthLog.action == 'login',
+        AuthLog.timestamp >= start_datetime,
+        AuthLog.timestamp <= end_datetime
+    ).count()
+    
+    # Calculate success rate (all time, up to this date)
+    total_items = Item.query.filter(Item.reported_at <= end_datetime).count()
+    returned_items = Item.query.filter(
+        Item.status == 'Reclaimed',
+        Item.reported_at <= end_datetime
+    ).count()
+    success_rate = (returned_items / total_items * 100) if total_items > 0 else 0.0
+    
+    # Calculate average return time
+    returned_with_dates = Item.query.filter(
+        Item.status == 'Reclaimed',
+        Item.reported_at.isnot(None),
+        Item.reported_at <= end_datetime
+    ).all()
+    
+    avg_return_days = 0.0
+    if returned_with_dates:
+        total_days = sum([
+            (item.reported_at.date() - item.lost_found_date).days 
+            for item in returned_with_dates 
+            if item.lost_found_date
+        ])
+        avg_return_days = total_days / len(returned_with_dates) if returned_with_dates else 0.0
+    
+    # Popular locations (cumulative up to this date)
+    location_counts = db.session.query(
+        Item.location, func.count(Item.id)
+    ).filter(
+        Item.reported_at <= end_datetime,
+        Item.is_active == True
+    ).group_by(Item.location).order_by(func.count(Item.id).desc()).limit(10).all()
+    
+    popular_locations = json.dumps({loc: count for loc, count in location_counts})
+    
+    # Popular items (cumulative up to this date)
+    item_counts = db.session.query(
+        Item.item_name, func.count(Item.id)
+    ).filter(
+        Item.reported_at <= end_datetime,
+        Item.is_active == True
+    ).group_by(Item.item_name).order_by(func.count(Item.id).desc()).limit(10).all()
+    
+    popular_items = json.dumps({name: count for name, count in item_counts})
+    
+    # Peak hours (for items reported on this specific date)
+    hour_counts = db.session.query(
+        extract('hour', Item.reported_at).label('hour'),
+        func.count(Item.id)
+    ).filter(
+        Item.reported_at >= start_datetime,
+        Item.reported_at <= end_datetime
+    ).group_by('hour').all()
+    
+    peak_hours = json.dumps({int(hour): count for hour, count in hour_counts if hour is not None})
+    
+    # Create analytics record
+    analytics = Analytics(
+        date=target_date,
+        items_lost_count=items_lost,
+        items_found_count=items_found,
+        items_returned_count=items_returned,
+        new_users_count=new_users,
+        active_users_count=active_users,
+        total_logins=total_logins,
+        success_rate=success_rate,
+        avg_return_time_days=avg_return_days,
+        popular_locations=popular_locations,
+        popular_items=popular_items,
+        peak_hours=peak_hours
+    )
+    
+    db.session.add(analytics)
+    db.session.commit()
+    
+    return analytics
+
+
+def get_analytics_summary(days=30):
+    """Get analytics summary for the last N days"""
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days)
+    
+    analytics = Analytics.query.filter(
+        Analytics.date >= start_date,
+        Analytics.date <= end_date
+    ).order_by(Analytics.date.desc()).all()
+    
+    # If we don't have data for all days, generate it
+    existing_dates = {a.date for a in analytics}
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date not in existing_dates:
+            generate_daily_analytics(current_date)
+        current_date += timedelta(days=1)
+    
+    # Fetch again after generation
+    analytics = Analytics.query.filter(
+        Analytics.date >= start_date,
+        Analytics.date <= end_date
+    ).order_by(Analytics.date.asc()).all()
+    
+    return analytics
+
 
 
 # --- Models (Object-Relational Mapping) ---
@@ -1375,6 +1641,20 @@ class User(db.Model, UserMixin):
     level = db.Column(db.String(20), default='Bronze')
     avatar_filename = db.Column(db.String(255), nullable=True)
     role = db.Column(db.String(20), default='student') # 'student', 'admin', 'hod'
+    
+    # Privacy & GDPR Fields
+    contact_visible = db.Column(db.Boolean, default=False, nullable=False)  # Hide contact until match confirmed
+    email_public = db.Column(db.Boolean, default=False, nullable=False)  # Show email on profile
+    phone = db.Column(db.String(15), nullable=True)  # Optional phone number
+    phone_public = db.Column(db.Boolean, default=False, nullable=False)  # Show phone on profile
+    
+    # Multi-language preference
+    preferred_language = db.Column(db.String(5), default='en', nullable=False)  # 'en', 'hi', 'gu'
+    
+    # Account tracking for GDPR compliance
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    last_login = db.Column(db.DateTime, nullable=True)
+    data_consent = db.Column(db.Boolean, default=True, nullable=False)  # User consents to data processing
 
     # Relationships to Item model, explicitly defining foreign_keys
     items_reported = db.relationship(
@@ -1432,6 +1712,70 @@ class User(db.Model, UserMixin):
             self.level = 'Silver'
         else:
             self.level = 'Bronze'
+    
+    def get_contact_info(self, requester=None):
+        """Return contact info based on privacy settings. GDPR-compliant."""
+        # Admins/HODs can always see contacts
+        if requester and (requester.is_admin() or requester.is_hod()):
+            return {
+                'email': self.email,
+                'phone': self.phone,
+                'visible': True
+            }
+        
+        # If contact_visible is True, show to all
+        if self.contact_visible:
+            return {
+                'email': self.email if self.email_public else self._mask_email(),
+                'phone': self.phone if self.phone_public else self._mask_phone(),
+                'visible': True
+            }
+        
+        # Otherwise, mask everything
+        return {
+            'email': self._mask_email(),
+            'phone': self._mask_phone(),
+            'visible': False
+        }
+    
+    def _mask_email(self):
+        """Mask email for privacy (GDPR compliance)"""
+        if not self.email:
+            return 'Hidden'
+        parts = self.email.split('@')
+        if len(parts) != 2:
+            return '***@***.***'
+        username = parts[0]
+        domain = parts[1]
+        if len(username) <= 2:
+            masked_user = '*' * len(username)
+        else:
+            masked_user = username[0] + '*' * (len(username) - 2) + username[-1]
+        return f"{masked_user}@{domain}"
+    
+    def _mask_phone(self):
+        """Mask phone for privacy (GDPR compliance)"""
+        if not self.phone:
+            return 'Hidden'
+        if len(self.phone) <= 4:
+            return '*' * len(self.phone)
+        return self.phone[:2] + '*' * (len(self.phone) - 4) + self.phone[-2:]
+    
+    def export_user_data(self):
+        """Export user data for GDPR compliance"""
+        return {
+            'registration_no': self.registration_no,
+            'full_name': self.full_name,
+            'email': self.email,
+            'phone': self.phone,
+            'points': self.points,
+            'level': self.level,
+            'role': self.role,
+            'preferred_language': self.preferred_language,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            'items_reported': [{'id': item.id, 'name': item.item_name, 'status': item.status} for item in self.items_reported if item.is_active]
+        }
 
     def __repr__(self):
         return f"User('{self.registration_no}', '{self.full_name}', '{self.role}')"
@@ -1514,57 +1858,88 @@ class BlockchainBlock(db.Model):
     def __repr__(self):
         return f"<Block {self.index} - Hash: {self.hash[:8]}...>"
 
+
+class Analytics(db.Model):
+    """Store daily analytics data for admin dashboard"""
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False, unique=True)
+    
+    # Item statistics
+    items_lost_count = db.Column(db.Integer, default=0)
+    items_found_count = db.Column(db.Integer, default=0)
+    items_returned_count = db.Column(db.Integer, default=0)
+    
+    # User engagement
+    new_users_count = db.Column(db.Integer, default=0)
+    active_users_count = db.Column(db.Integer, default=0)
+    total_logins = db.Column(db.Integer, default=0)
+    
+    # Success metrics
+    success_rate = db.Column(db.Float, default=0.0)  # Percentage of items returned
+    avg_return_time_days = db.Column(db.Float, default=0.0)
+    
+    # Popular data (stored as JSON)
+    popular_locations = db.Column(db.Text, nullable=True)  # JSON: {"location": count}
+    popular_items = db.Column(db.Text, nullable=True)  # JSON: {"item_name": count}
+    peak_hours = db.Column(db.Text, nullable=True)  # JSON: {"hour": count}
+    
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    
+    def __repr__(self):
+        return f"<Analytics {self.date} - Lost: {self.items_lost_count}, Found: {self.items_found_count}>"
+
+
 # --- WTForms (Web Forms) ---
 # Forms are defined AFTER models, as they might reference models (e.g., for validation)
 class RegistrationForm(FlaskForm):
-    registration_no = StringField('Registration No.', validators=[
+    registration_no = StringField(_l('Registration No.'), validators=[
         DataRequired(), Length(min=5, max=20),
-        Regexp('^[A-Za-z0-9]+$', message="Registration number must contain only letters and digits.")
+        Regexp('^[A-Za-z0-9]+$', message=_l("Registration number must contain only letters and digits."))
     ])
-    full_name = StringField('Full Name', validators=[DataRequired(), Length(min=2, max=100)])
-    email = StringField('Email (Optional)', validators=[Optional(), Length(max=120)])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
-    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
-    submit = SubmitField('Register')
+    full_name = StringField(_l('Full Name'), validators=[DataRequired(), Length(min=2, max=100)])
+    email = StringField(_l('Email (Optional)'), validators=[Optional(), Length(max=120)])
+    password = PasswordField(_l('Password'), validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField(_l('Confirm Password'), validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField(_l('Register'))
 
     # Custom validator to check if registration number already exists
     def validate_registration_no(self, registration_no):
         user = User.query.filter_by(registration_no=registration_no.data).first()
         if user:
-            raise ValidationError('That registration number is already taken. Please choose a different one.')
+            raise ValidationError(_l('That registration number is already taken. Please choose a different one.'))
 
     # Custom validator to check if email already exists
     def validate_email(self, email):
         if email.data and email.data.strip(): # Only validate if email is provided AND not empty/whitespace
             user = User.query.filter_by(email=email.data.strip()).first()
             if user:
-                raise ValidationError('That email address is already registered. Please use a different one or log in.')
+                raise ValidationError(_l('That email address is already registered. Please use a different one or log in.'))
 
 
 class LoginForm(FlaskForm):
-    registration_no = StringField('Registration No.', validators=[DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    submit = SubmitField('Login')
+    registration_no = StringField(_l('Registration No.'), validators=[DataRequired()])
+    password = PasswordField(_l('Password'), validators=[DataRequired()])
+    submit = SubmitField(_l('Login'))
 
 class ReportLostItemForm(FlaskForm):
-    item_name = StringField('Item Name', validators=[DataRequired(), Length(max=100)])
-    description = TextAreaField('Description', validators=[DataRequired()])
-    lost_date = DateField('Date Lost', validators=[DataRequired()], widget=DateInput())
-    location = StringField('Location Lost', validators=[DataRequired(), Length(max=200)])
-    submit = SubmitField('Report Lost Item')
+    item_name = StringField(_l('Item Name'), validators=[DataRequired(), Length(max=100)])
+    description = TextAreaField(_l('Description'), validators=[DataRequired()])
+    lost_date = DateField(_l('Date Lost'), validators=[DataRequired()], widget=DateInput())
+    location = StringField(_l('Location Lost'), validators=[DataRequired(), Length(max=200)])
+    submit = SubmitField(_l('Report Lost Item'))
 
 class ReportFoundItemForm(FlaskForm):
-    item_name = StringField('Item Name', validators=[DataRequired(), Length(max=100)])
-    description = TextAreaField('Description', validators=[DataRequired()])
-    found_date = DateField('Date Found', validators=[DataRequired()], widget=DateInput())
-    location = StringField('Location Found', validators=[DataRequired(), Length(max=200)])
-    image = FileField('Upload Image', validators=[
+    item_name = StringField(_l('Item Name'), validators=[DataRequired(), Length(max=100)])
+    description = TextAreaField(_l('Description'), validators=[DataRequired()])
+    found_date = DateField(_l('Date Found'), validators=[DataRequired()], widget=DateInput())
+    location = StringField(_l('Location Found'), validators=[DataRequired(), Length(max=200)])
+    image = FileField(_l('Upload Image'), validators=[
         DataRequired(),
-        FileAllowed(ALLOWED_EXTENSIONS, 'Images only! (png, jpg, jpeg, gif)')
+        FileAllowed(ALLOWED_EXTENSIONS, _l('Images only! (png, jpg, jpeg, gif)'))
     ])
-    submit = SubmitField('Report Found Item')
+    submit = SubmitField(_l('Report Found Item'))
     # Optional confirmation for phone images; shown client-side when item is a phone
-    phone_confirm = BooleanField('I confirm this image shows the phone')
+    phone_confirm = BooleanField(_l('I confirm this image shows the claimed item'))
 
 
 class ProfilePhotoForm(FlaskForm):
@@ -1613,12 +1988,12 @@ def health():
 @app.route("/")
 @app.route("/home")
 def home():
-    return render_template('index.html', title='Home')
+    return render_template('index.html', title=_('Home'))
 
 @app.route("/register", methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
-        flash('You are already logged in.', 'info')
+        flash(_('You are already logged in.'), 'info')
         return redirect(url_for('home'))
     form = RegistrationForm()
     if form.validate_on_submit():
@@ -1632,7 +2007,7 @@ def register():
             user.set_password(form.password.data)
             db.session.add(user)
             db.session.commit()
-            flash('Your account has been created! You are now able to log in', 'success')
+            flash(_('Your account has been created! You are now able to log in'), 'success')
             print(f"DEBUG: New student registered: Reg No: {user.registration_no}, Email: {user.email}")
             return redirect(url_for('login'))
         except Exception as e:
@@ -1643,20 +2018,20 @@ def register():
             # Check if it's a unique constraint violation
             if 'UNIQUE constraint failed' in str(e) or 'unique' in str(e).lower():
                 if 'registration_no' in str(e):
-                    flash('That registration number is already taken. Please choose a different one.', 'danger')
+                    flash(_('That registration number is already taken. Please choose a different one.'), 'danger')
                 elif 'email' in str(e):
-                    flash('That email address is already registered. Please use a different one.', 'danger')
+                    flash(_('That email address is already registered. Please use a different one.'), 'danger')
                 else:
-                    flash('Registration failed: Duplicate entry detected.', 'danger')
+                    flash(_('Registration failed: Duplicate entry detected.'), 'danger')
             else:
-                flash(f'Registration failed due to a server error. Please try again. Error: {str(e)}', 'danger')
-            return render_template('register.html', title='Register', form=form)
-    return render_template('register.html', title='Register', form=form)
+                flash(_('Registration failed due to a server error. Please try again. Error: %(error)s', error=str(e)), 'danger')
+            return render_template('register.html', title=_('Register'), form=form)
+    return render_template('register.html', title=_('Register'), form=form)
 
 @app.route("/login", methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        flash('You are already logged in.', 'info')
+        flash(_('You are already logged in.'), 'info')
         return redirect(url_for('home'))
     form = LoginForm()
     if form.validate_on_submit():
@@ -1676,23 +2051,23 @@ def login():
             if user.check_password(attempted_password):
                 login_user(user)
                 next_page = request.args.get('next')
-                flash('Login successful!', 'success')
+                flash(_('Login successful!'), 'success')
                 print(f"DEBUG: Login successful for user '{user.registration_no}' ({user.role}). Redirecting to {next_page or url_for('items')}")
                 return redirect(next_page) if next_page else redirect(url_for('items'))
             else:
                 print(f"DEBUG: Password mismatch for user '{user.registration_no}'.")
-                flash('Login Unsuccessful. Please check registration number and password', 'danger')
+                flash(_('Login Unsuccessful. Please check registration number and password'), 'danger')
         else:
             print(f"DEBUG: No user found with Registration No: '{attempted_reg_no}'.")
-            flash('Login Unsuccessful. Please check registration number and password', 'danger')
-    return render_template('login.html', title='Login', form=form)
+            flash(_('Login Unsuccessful. Please check registration number and password'), 'danger')
+    return render_template('login.html', title=_('Login'), form=form)
 
 @app.route("/logout")
 @login_required
 def logout():
     print(f"DEBUG: User '{current_user.registration_no}' logging out.")
     logout_user()
-    flash('You have been logged out.', 'info')
+    flash(_('You have been logged out.'), 'info')
     return redirect(url_for('home'))
 
 @app.route("/report_lost", methods=['GET', 'POST'])
@@ -1716,17 +2091,17 @@ def report_lost():
                         details=f"Lost report: {item.item_name}")
         db.session.add(log)
         db.session.commit()
-        flash('Your lost item report has been submitted!', 'success')
+        flash(_('Your lost item report has been submitted!'), 'success')
         print(f"DEBUG: Lost item reported by {current_user.registration_no}: {item.item_name}")
         
         # After saving, check for matching active found reports
         matches = find_smart_matches(item)
         if matches:
-            flash(f'🤖 AI discovered {len(matches)} potential found reports that match your item!', 'info')
+            flash(_('🤖 AI discovered %(count)d potential found reports that match your item!', count=len(matches)), 'info')
             return redirect(url_for('item_matches', item_id=item.id))
 
         return redirect(url_for('items'))
-    return render_template('report_item_modern.html', title='Report Lost Item', form=form, item_type='Lost', protected_keywords=PROTECTED_KEYWORDS)
+    return render_template('report_item_modern.html', title=_('Report Lost Item'), form=form, item_type='Lost', protected_keywords=PROTECTED_KEYWORDS)
 
 @app.route("/report_found", methods=['GET', 'POST'])
 @login_required
@@ -1739,11 +2114,11 @@ def report_found():
     if form.validate_on_submit():
         print(f"DEBUG: Form validated. Item: {form.item_name.data}")
         if 'image' not in request.files:
-            flash('No file part', 'danger')
+            flash(_('No file part'), 'danger')
             return redirect(request.url)
         file = request.files['image']
         if file.filename == '':
-            flash('No selected file', 'danger')
+            flash(_('No selected file'), 'danger')
             return redirect(request.url)
 
         # Server-side check: if item appears to be a protected/valuable type, ensure user ticked confirmation
@@ -1754,9 +2129,9 @@ def report_found():
 
         if looks_like_protected(form.item_name.data) and not form.phone_confirm.data:
             print(f"DEBUG: Protected item detected ('{form.item_name.data}') but confirmation missing. Re-rendering form.")
-            flash('Protected/Valuable item detected. Please tick the confirmation box and re-upload your photo to proceed.', 'warning')
+            flash(_('Protected/Valuable item detected. Please tick the confirmation box and re-upload your photo to proceed.'), 'warning')
             # Fall through to render_template instead of redirecting to avoid losing the uploaded data
-            return render_template('report_item_modern.html', title='Report Found Item', form=form, item_type='Found', protected_keywords=PROTECTED_KEYWORDS)
+            return render_template('report_item_modern.html', title=_('Report Found Item'), form=form, item_type='Found', protected_keywords=PROTECTED_KEYWORDS)
 
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
@@ -1771,14 +2146,14 @@ def report_found():
                     print(f"DEBUG: Successfully created upload directory: {upload_path}")
                 except OSError as e:
                     print(f"ERROR: Failed to create directory '{upload_path}': {e}")
-                    flash(f"Error creating upload directory: {e}. Check server permissions.", 'danger')
+                    flash(_("Error creating upload directory: %(error)s. Check server permissions.", error=str(e)), 'danger')
                     return redirect(request.url)
             else:
                 print(f"DEBUG: Directory '{upload_path}' already exists.")
 
             if not os.access(upload_path, os.W_OK):
                 print(f"ERROR: Directory '{upload_path}' is not writable by the current user.")
-                flash(f"Upload directory is not writable. Check server permissions for '{upload_path}'.", 'danger')
+                flash(_("Upload directory is not writable. Check server permissions for '%(path)s'.", path=upload_path), 'danger')
                 return redirect(request.url)
             else:
                 print(f"DEBUG: Directory '{upload_path}' is writable.")
@@ -1808,10 +2183,10 @@ def report_found():
                                     print(f"DEBUG: Removed image due to unacceptable aspect ratio: {file_path}")
                             except Exception as e:
                                 print(f"DEBUG: Failed to remove file after aspect rejection: {e}")
-                            flash('The uploaded image is too wide/distorted for this protected item. Please upload a clear, central photo of the claimed item and try again.', 'warning')
-                            return render_template('report_item_modern.html', title='Report Found Item', form=form, item_type='Found', protected_keywords=PROTECTED_KEYWORDS)
+                            flash(_('The uploaded image is too wide/distorted for this protected item. Please upload a clear, central photo of the claimed item and try again.'), 'warning')
+                            return render_template('report_item_modern.html', title=_('Report Found Item'), form=form, item_type='Found', protected_keywords=PROTECTED_KEYWORDS)
                         else:
-                            flash('Uploaded image seems unusually wide. Please upload a clear photo (portrait or closer framing).', 'warning')
+                            flash(_('Uploaded image seems unusually wide. Please upload a clear photo (portrait or closer framing).'), 'warning')
 
                     # Additional lightweight check for clarity: compute edge density for strict items when model not available
                     if any(k in form.item_name.data.lower() for k in PROTECTED_STRICT):
@@ -1849,11 +2224,7 @@ def report_found():
                         except Exception as e:
                             print(f"DEBUG: Failed to remove unverified file: {e}")
 
-                        # Show a helpful message and include the verification reason to guide the user
-                        base = 'The uploaded image does not appear to show the claimed item. Please upload a clear photo that shows the item (close-up or different angle) and try again.'
-                        reason = info if isinstance(info, str) else str(info)
-                        msg = f"{base} Reason: {reason}"
-                        flash(msg, 'warning')
+                        flash(_("The uploaded image does not appear to show the claimed item. Please upload a clear photo that shows the item (close-up or different angle) and try again. Reason: %(reason)s", reason=str(info)), 'warning')
                         print(f"DEBUG: Image verification failed for item '{form.item_name.data}'. Info: {info}")
                         return redirect(request.url)
                     else:
@@ -1885,42 +2256,45 @@ def report_found():
                     verification_details_dict = details
                     print(f"DEBUG: Cross-verification - Confidence: {confidence:.2f}, Verified: {verified}")
                     
-                    # Check for conflicts
-                    has_conflict = details.get('conflict_penalty', 0) > 0
-                    conflict_msg = details.get('conflict', '')
+                    # Reject only for clear mismatches on high-value items or extremely low quality images
+                    is_strict = any(k in form.item_name.data.lower() for k in PROTECTED_STRICT)
                     
-                    # Reject extremely low confidence (likely mislabeled)
-                    if confidence < 0.2 or has_conflict:
-                        # Remove the saved file
-                        try:
-                            if os.path.exists(file_path):
-                                os.remove(file_path)
-                                print(f"DEBUG: Removed unverified/rejected image: {file_path}")
-                        except Exception as e:
-                            print(f"DEBUG: Failed to remove rejected file: {e}")
+                    should_reject = False
+                    if confidence < 0.05: # Essential "reality check" to prevent empty/unusable uploads
+                        should_reject = True
+                        print(f"DEBUG: Rejecting due to garbage-level confidence: {confidence:.2f}")
+                    elif has_conflict and is_strict: # Clear mismatch on protected high-value item
+                        should_reject = True
+                        print(f"DEBUG: Rejecting due to strict category conflict: {conflict_msg}")
+                    
+                    if should_reject:
+                        # Log but do NOT remove the file to avoid broken images.
+                        print(f"DEBUG: Low confidence/conflict for item '{form.item_name.data}'. Confidence: {confidence:.2f}")
                         
                         # Show detailed error message
-                        if conflict_msg:
-                            error_msg = f'Item name does not match the image. {conflict_msg}. Please ensure the item name accurately describes what is in the photo.'
+                        if conflict_msg and is_strict:
+                            error_msg = _('Item name mismatch for protected item. %(conflict)s. Please ensure the item name accurately describes what is in the photo.', conflict=conflict_msg)
+                        elif confidence < 0.05:
+                            error_msg = _('The uploaded image is too unclear or doesn\'t appear to contain a recognizable object (AI confidence %(confidence)d%%). Please upload a clearer photo.', confidence=int(confidence*100))
                         else:
-                            error_msg = f'Very low AI confidence ({int(confidence*100)}%). The image does not appear to match the item name. Please verify you uploaded the correct photo and item name.'
+                            error_msg = _('We are having trouble identifying this item. Please ensure you have uploaded a clear photo and mentioned the correct item name.')
                         
                         flash(error_msg, 'danger')
                         return redirect(request.url)
                     
                     # Show verification feedback to user for successful submissions
                     if confidence >= 0.7:
-                        flash(f'✅ High confidence match ({int(confidence*100)}%) - Item verified!', 'success')
+                        flash(_('✅ High confidence match (%(confidence)d%%) - Item verified!', confidence=int(confidence*100)), 'success')
                     elif confidence >= 0.4:
-                        flash(f'⚠️ Medium confidence ({int(confidence*100)}%) - Please verify the details are correct.', 'warning')
+                        flash(_('⚠️ Medium confidence (%(confidence)d%%) - Please verify the details are correct.', confidence=int(confidence*100)), 'warning')
                     elif confidence >= 0.2:
-                        flash(f'⚠️ Low confidence match ({int(confidence*100)}%) - Please double-check item name and image match.', 'warning')
+                        flash(_('⚠️ Low confidence match (%(confidence)d%%) - Please double-check item name and image match.', confidence=int(confidence*100)), 'warning')
                         
                 except Exception as e:
                     print(f"DEBUG: Cross-verification error: {e}")
             except Exception as e:
                 print(f"ERROR: Failed to save file '{filename}' to '{file_path}': {e}")
-                flash(f"Error saving image: {e}. Check server disk space or permissions.", 'danger')
+                flash(_("Error saving image: %(error)s. Check server disk space or permissions.", error=str(e)), 'danger')
                 return redirect(request.url)
 
             # Store verification details as JSON
@@ -1967,17 +2341,21 @@ def report_found():
                 db.session.add(plog)
                 db.session.commit()
 
-            flash('Your found item report has been submitted!' + (f" You earned {points_awarded} points!" if points_awarded else ''), 'success')
+            if points_awarded:
+                msg = _("Your found item report has been submitted! You earned %(points)d points!", points=points_awarded)
+            else:
+                msg = _("Your found item report has been submitted!")
+            flash(msg, 'success')
             print(f"DEBUG: Found item reported by {current_user.registration_no}: {item.item_name}. Points awarded: {points_awarded}")
 
             if matches:
-                flash(f'🤖 AI discovered {len(matches)} potential lost reports that match your item!', 'info')
+                flash(_('🤖 AI discovered %(count)d potential lost reports that match your item!', count=len(matches)), 'info')
                 return redirect(url_for('item_matches', item_id=item.id))
             
             return redirect(url_for('items'))
         else:
-            flash(f"Invalid file type. Allowed: {', '.join(app.config['ALLOWED_EXTENSIONS'])}", 'danger')
-    return render_template('report_item_modern.html', title='Report Found Item', form=form, item_type='Found', protected_keywords=PROTECTED_KEYWORDS)
+            flash(_("Invalid file type. Allowed: %(extensions)s", extensions=', '.join(app.config['ALLOWED_EXTENSIONS'])), 'danger')
+    return render_template('report_item_modern.html', title=_('Report Found Item'), form=form, item_type='Found', protected_keywords=PROTECTED_KEYWORDS)
 
 @app.route("/items")
 @login_required
@@ -2007,7 +2385,7 @@ def items():
 
     active_items = query.order_by(Item.reported_at.desc()).all()
     print(f"DEBUG: Displaying {len(active_items)} active items (filter='{f}', search='{q}') for {current_user.registration_no}")
-    return render_template('item_list.html', title='Lost & Found Items', items=active_items)
+    return render_template('item_list.html', title=_('Lost & Found Items'), items=active_items)
 
 @app.route("/item/<int:item_id>", methods=['GET', 'POST'])
 @login_required
@@ -2016,7 +2394,7 @@ def item_detail(item_id):
     if item is None:
         # Item missing return 404 to the user
         print(f"DEBUG: Item with ID {item_id} not found for detail view.")
-        return render_template('404.html', title='Item Not Found'), 404
+        return render_template('404.html', title=_('Item Not Found')), 404
 
     form = MessageForm()
     if form.validate_on_submit():
@@ -2030,13 +2408,13 @@ def item_detail(item_id):
                          details=(form.content.data[:200] + '...' if len(form.content.data) > 200 else form.content.data))
         db.session.add(mlog)
         db.session.commit()
-        flash('Message posted.', 'success')
+        flash(_('Message posted.'), 'success')
         return redirect(url_for('item_detail', item_id=item.id))
 
     # Load messages for this item (most recent last)
     messages = Message.query.filter_by(item_id=item.id).order_by(Message.timestamp.asc()).all()
     print(f"DEBUG: Displaying details for item ID {item_id}: {item.item_name} with {len(messages)} messages")
-    return render_template('item_detail_modern.html', title='Item Details', item=item, form=form, messages=messages)
+    return render_template('item_detail_modern.html', title=_('Item Details'), item=item, form=form, messages=messages)
 
 
 @app.route("/item/<int:item_id>/delete", methods=['POST'])
@@ -2050,7 +2428,7 @@ def delete_item(item_id):
 
     item = db.session.get(Item, item_id)
     if item is None:
-        flash('Item not found.', 'danger')
+        flash(_('Item not found.'), 'danger')
         print(f"DEBUG: Delete attempt for non-existent item ID {item_id}.")
         return redirect(url_for('items'))
 
@@ -2065,10 +2443,10 @@ def delete_item(item_id):
                         details=f"Item moved to history: {item.item_name}")
         db.session.add(log)
         db.session.commit()
-        flash('Item has been successfully moved to history.', 'success')
+        flash(_('Item has been successfully moved to history.'), 'success')
         print(f"DEBUG: Item '{item.item_name}' (ID: {item_id}) soft-deleted by {current_user.registration_no}.")
     else:
-        flash('Item is already in history.', 'info')
+        flash(_('Item is already in history.'), 'info')
         print(f"DEBUG: Item '{item.item_name}' (ID: {item_id}) already inactive, no action taken.")
     return redirect(url_for('items'))
 
@@ -2080,14 +2458,14 @@ def utility_processor():
         if not user:
             return False
         return user.is_admin() or user.is_hod()
-    return dict(can_delete_item=can_delete_item)
+    return dict(can_delete_item=can_delete_item, current_year=datetime.now().year)
 
 
 @app.errorhandler(403)
 def forbidden(error):
     # Provide a friendly forbidden page and log the event
     print(f"DEBUG: 403 Forbidden - {request.remote_addr} attempted an unauthorized action. Message: {error}")
-    return render_template('403.html', title='Forbidden'), 403
+    return render_template('403.html', title=_('Forbidden')), 403
 
 @app.errorhandler(500)
 def internal_server_error(error):
@@ -2106,7 +2484,7 @@ def internal_server_error(error):
         pass
     
     # Return a user-friendly error page
-    return render_template('500.html', title='Server Error'), 500
+    return render_template('500.html', title=_('Server Error')), 500
 
 # =====================================================
 # Admin Panel Routes
@@ -2119,7 +2497,7 @@ def admin_dashboard():
     """Admin dashboard with user management, transactions, and analytics"""
     # Only admin or hod can access
     if not (current_user.is_admin() or current_user.is_hod()):
-        flash('You do not have permission to access the admin panel.', 'danger')
+        flash(_('You do not have permission to access the admin panel.'), 'danger')
         print(f"DEBUG: User {current_user.registration_no} (Role: {current_user.role}) attempted unauthorized access to admin panel.")
         return redirect(url_for('items'))
     
@@ -2197,7 +2575,7 @@ def admin_dashboard():
     print(f"DEBUG: Admin dashboard accessed by {current_user.registration_no}. Showing {len(users)} users, {len(transactions)} transactions.")
     
     return render_template('admin_dashboard.html', 
-                         title='Admin Dashboard',
+                         title=_('Admin Dashboard'),
                          users=users,
                          transactions=transactions,
                          items=items,
@@ -2224,7 +2602,7 @@ def admin_user_detail(user_id):
     user_auth_logs = AuthLog.query.filter_by(user_id=user.id).order_by(AuthLog.timestamp.desc()).limit(20).all()
     
     return render_template('admin_user_detail.html',
-                         title=f'User: {user.full_name}',
+                         title=_('User: %(name)s', name=user.full_name),
                          user=user,
                          items=user_items,
                          logs=user_logs,
@@ -2270,14 +2648,14 @@ def admin_change_user_role(user_id):
 def item_history():
     # Only admin or hod can attempt to view history
     if not (current_user.is_admin() or current_user.is_hod()):
-        flash('You do not have permission to view item history.', 'danger')
+        flash(_('You do not have permission to view item history.'), 'danger')
         print(f"DEBUG: User {current_user.registration_no} (Role: {current_user.role}) attempted unauthorized access to history.")
         return redirect(url_for('items'))
 
     # Only users with admin or hod roles can view history — render it directly.
     all_items = Item.query.order_by(Item.reported_at.desc()).all()
     print(f"DEBUG: Displaying {len(all_items)} items (including inactive) for {current_user.registration_no}.")
-    return render_template('item_history.html', title='Item History', items=all_items)
+    return render_template('item_history.html', title=_('Item History'), items=all_items)
 
 # DEBUGGING ROUTE - Remove in production
 @app.route("/debug/users")
@@ -2306,7 +2684,7 @@ def edit_profile():
     if form.validate_on_submit():
         file = request.files.get('photo')
         if not file or file.filename == '':
-            flash('No file selected.', 'warning')
+            flash(_('No file selected.'), 'warning')
             return redirect(url_for('edit_profile'))
 
         if file and allowed_file(file.filename):
@@ -2320,14 +2698,14 @@ def edit_profile():
                 try:
                     os.makedirs(upload_path)
                 except OSError as e:
-                    flash(f'Unable to create upload directory: {e}', 'danger')
+                    flash(_('Unable to create upload directory: %(error)s', error=str(e)), 'danger')
                     return redirect(url_for('edit_profile'))
 
             file_path = os.path.join(upload_path, save_name)
             try:
                 file.save(file_path)
             except Exception as e:
-                flash(f'Failed to save file: {e}', 'danger')
+                flash(_('Failed to save file: %(error)s', error=str(e)), 'danger')
                 return redirect(url_for('edit_profile'))
 
             # Delete previous avatar file if present and not a shared placeholder
@@ -2342,13 +2720,13 @@ def edit_profile():
 
             current_user.avatar_filename = save_name
             db.session.commit()
-            flash('Profile photo updated.', 'success')
+            flash(_('Profile photo updated.'), 'success')
             return redirect(url_for('profile'))
         else:
-            flash('Invalid file type.', 'danger')
+            flash(_('Invalid file type.'), 'danger')
             return redirect(url_for('edit_profile'))
 
-    return render_template('edit_profile.html', title='Edit Profile', form=form, user=current_user)
+    return render_template('edit_profile.html', title=_('Edit Profile'), form=form, user=current_user)
 
 
 @app.route("/debug/logs")
@@ -2378,7 +2756,7 @@ def levels():
     # Ensure level is up-to-date
     user.update_level()
     db.session.commit()
-    return render_template('levels.html', title='Your Level', user=user)
+    return render_template('levels.html', title=_('Your Level'), user=user)
 
 
 @app.route("/leaderboard")
@@ -2386,7 +2764,7 @@ def levels():
 def leaderboard():
     # Show top users by points
     top_users = User.query.order_by(User.points.desc()).limit(50).all()
-    return render_template('leaderboard.html', title='Leaderboard', users=top_users)
+    return render_template('leaderboard.html', title=_('Leaderboard'), users=top_users)
 
 
 @app.route("/profile")
@@ -2423,7 +2801,7 @@ def profile():
         except ValueError:
             next_level = None
 
-    return render_template('profile.html', title='Your Profile', user=user, reports=recent_reports,
+    return render_template('profile.html', title=_('Your Profile'), user=user, reports=recent_reports,
                            progress_pct=progress_pct, points_to_next=points_to_next, next_level=next_level)
 
 
@@ -2504,6 +2882,376 @@ def item_matches(item_id):
     item = Item.query.get_or_404(item_id)
     matches = find_smart_matches(item)
     return render_template('item_matches.html', item=item, matches=matches)
+
+
+# --- Analytics Dashboard Routes (Admin/HOD Only) ---
+@app.route('/analytics')
+@login_required
+def analytics_dashboard():
+    """Analytics dashboard for admins and HODs"""
+    if not (current_user.is_admin() or current_user.is_hod()):
+        flash(_('Access denied. Admin or HOD privileges required.'), 'danger')
+        return redirect(url_for('index'))
+    
+    # Get analytics for the last 30 days
+    analytics_data = get_analytics_summary(days=30)
+    
+    # Calculate overall statistics
+    total_items_lost = sum(a.items_lost_count for a in analytics_data)
+    total_items_found = sum(a.items_found_count for a in analytics_data)
+    total_items_returned = sum(a.items_returned_count for a in analytics_data)
+    
+    # Get current analytics
+    today_analytics = generate_daily_analytics(date.today())
+    
+    # Get all-time statistics
+    total_users = User.query.count()
+    total_items = Item.query.filter_by(is_active=True).count()
+    items_lost_active = Item.query.filter_by(status='Lost', is_active=True).count()
+    items_found_active = Item.query.filter_by(status='Found', is_active=True).count()
+    
+    # Popular locations and items (from latest analytics)
+    popular_locations = json.loads(today_analytics.popular_locations) if today_analytics.popular_locations else {}
+    popular_items = json.loads(today_analytics.popular_items) if today_analytics.popular_items else {}
+    peak_hours = json.loads(today_analytics.peak_hours) if today_analytics.peak_hours else {}
+    
+    return render_template('analytics_dashboard.html',
+                         title=_('Analytics Dashboard'),
+                         analytics_data=analytics_data,
+                         total_items_lost=total_items_lost,
+                         total_items_found=total_items_found,
+                         total_items_returned=total_items_returned,
+                         total_users=total_users,
+                         total_items=total_items,
+                         items_lost_active=items_lost_active,
+                         items_found_active=items_found_active,
+                         popular_locations=popular_locations,
+                         popular_items=popular_items,
+                         peak_hours=peak_hours,
+                         success_rate=today_analytics.success_rate,
+                         avg_return_days=today_analytics.avg_return_time_days)
+
+
+# --- Export Reports Routes (Admin/HOD Only) ---
+@app.route('/export/items/<format>')
+@login_required
+def export_items(format):
+    """Export items data to CSV or PDF (Admin/HOD only)"""
+    if not (current_user.is_admin() or current_user.is_hod()):
+        flash(_('Access denied. Admin or HOD privileges required.'), 'danger')
+        return redirect(url_for('index'))
+    
+    # Get filter parameters
+    status_filter = request.args.get('status', 'all')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    # Build query
+    query = Item.query.filter_by(is_active=True)
+    
+    if status_filter != 'all':
+        query = query.filter_by(status=status_filter)
+    
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(Item.reported_at >= start_dt)
+        except ValueError:
+            pass
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+            query = query.filter(Item.reported_at <= end_dt)
+        except ValueError:
+            pass
+    
+    items = query.order_by(Item.reported_at.desc()).all()
+    
+    if format == 'csv':
+        return export_items_csv(items)
+    elif format == 'pdf':
+        if not REPORTLAB_AVAILABLE:
+            flash(_('PDF export is not available. Please install reportlab.'), 'warning')
+            return redirect(url_for('analytics_dashboard'))
+        return export_items_pdf(items)
+    else:
+        flash(_('Invalid export format'), 'danger')
+        return redirect(url_for('analytics_dashboard'))
+
+
+def export_items_csv(items):
+    """Generate CSV export of items"""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow(['ID', 'Item Name', 'Description', 'Status', 'Location', 
+                     'Date Lost/Found', 'Reported At', 'Reported By', 'Reporter Email'])
+    
+    # Write data
+    for item in items:
+        reporter_name = item.reporter.full_name if item.reporter else 'Unknown'
+        reporter_email = item.reporter.email if item.reporter else 'N/A'
+        
+        writer.writerow([
+            item.id,
+            item.item_name,
+            item.description,
+            item.status,
+            item.location,
+            item.lost_found_date.strftime('%Y-%m-%d') if item.lost_found_date else 'N/A',
+            item.reported_at.strftime('%Y-%m-%d %H:%M:%S') if item.reported_at else 'N/A',
+            reporter_name,
+            reporter_email
+        ])
+    
+    # Create response
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Disposition'] = f'attachment; filename=items_export_{date.today()}.csv'
+    response.headers['Content-Type'] = 'text/csv'
+    
+    return response
+
+
+def export_items_pdf(items):
+    """Generate PDF export of items"""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Add title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#2c3e50'),
+        spaceAfter=30,
+        alignment=1  # Center
+    )
+    elements.append(Paragraph('Lost & Found Portal - Items Report', title_style))
+    elements.append(Paragraph(f'Generated on: {date.today().strftime("%B %d, %Y")}', styles['Normal']))
+    elements.append(Spacer(1, 0.5*inch))
+    
+    # Prepare table data
+    table_data = [['ID', 'Item Name', 'Status', 'Location', 'Date', 'Reported By']]
+    
+    for item in items:
+        reporter_name = item.reporter.full_name if item.reporter else 'Unknown'
+        date_str = item.lost_found_date.strftime('%Y-%m-%d') if item.lost_found_date else 'N/A'
+        
+        table_data.append([
+            str(item.id),
+            item.item_name[:30],  # Truncate long names
+            item.status,
+            item.location[:25],  # Truncate long locations
+            date_str,
+            reporter_name[:20]  # Truncate long names
+        ])
+    
+    # Create table
+    table = Table(table_data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+    ]))
+    
+    elements.append(table)
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    return send_file(buffer, as_attachment=True, 
+                    download_name=f'items_report_{date.today()}.pdf',
+                    mimetype='application/pdf')
+
+
+@app.route('/export/analytics/<format>')
+@login_required
+def export_analytics(format):
+    """Export analytics data to CSV or PDF (Admin/HOD only)"""
+    if not (current_user.is_admin() or current_user.is_hod()):
+        flash(_('Access denied. Admin or HOD privileges required.'), 'danger')
+        return redirect(url_for('index'))
+    
+    days = int(request.args.get('days', 30))
+    analytics_data = get_analytics_summary(days=days)
+    
+    if format == 'csv':
+        return export_analytics_csv(analytics_data)
+    elif format == 'pdf':
+        if not REPORTLAB_AVAILABLE:
+            flash(_('PDF export is not available.'), 'warning')
+            return redirect(url_for('analytics_dashboard'))
+        return export_analytics_pdf(analytics_data)
+    else:
+        flash(_('Invalid export format'), 'danger')
+        return redirect(url_for('analytics_dashboard'))
+
+
+def export_analytics_csv(analytics_data):
+    """Generate CSV export of analytics"""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow(['Date', 'Items Lost', 'Items Found', 'Items Returned', 
+                     'New Users', 'Active Users', 'Logins', 'Success Rate %', 'Avg Return Days'])
+    
+    # Write data
+    for a in analytics_data:
+        writer.writerow([
+            a.date.strftime('%Y-%m-%d'),
+            a.items_lost_count,
+            a.items_found_count,
+            a.items_returned_count,
+            a.new_users_count,
+            a.active_users_count,
+            a.total_logins,
+            f'{a.success_rate:.2f}',
+            f'{a.avg_return_time_days:.1f}'
+        ])
+    
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Disposition'] = f'attachment; filename=analytics_export_{date.today()}.csv'
+    response.headers['Content-Type'] = 'text/csv'
+    
+    return response
+
+
+def export_analytics_pdf(analytics_data):
+    """Generate PDF export of analytics"""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Add title
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], 
+                                fontSize=24, textColor=colors.HexColor('#2c3e50'),
+                                spaceAfter=30, alignment=1)
+    elements.append(Paragraph('Lost & Found Portal - Analytics Report', title_style))
+    elements.append(Paragraph(f'Generated on: {date.today().strftime("%B %d, %Y")}', styles['Normal']))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Summary statistics
+    total_lost = sum(a.items_lost_count for a in analytics_data)
+    total_found = sum(a.items_found_count for a in analytics_data)
+    total_returned = sum(a.items_returned_count for a in analytics_data)
+    avg_success = sum(a.success_rate for a in analytics_data) / len(analytics_data) if analytics_data else 0
+    
+    summary = f"""
+    <b>Summary Statistics:</b><br/>
+    Total Items Lost: {total_lost}<br/>
+    Total Items Found: {total_found}<br/>
+    Total Items Returned: {total_returned}<br/>
+    Average Success Rate: {avg_success:.2f}%<br/>
+    """
+    elements.append(Paragraph(summary, styles['Normal']))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Daily data table
+    table_data = [['Date', 'Lost', 'Found', 'Returned', 'Success %']]
+    for a in analytics_data:
+        table_data.append([
+            a.date.strftime('%Y-%m-%d'),
+            str(a.items_lost_count),
+            str(a.items_found_count),
+            str(a.items_returned_count),
+            f'{a.success_rate:.1f}%'
+        ])
+    
+    table = Table(table_data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+    ]))
+    
+    elements.append(table)
+    doc.build(elements)
+    buffer.seek(0)
+    
+    return send_file(buffer, as_attachment=True,
+                    download_name=f'analytics_report_{date.today()}.pdf',
+                    mimetype='application/pdf')
+
+
+# --- Language Switcher Route ---
+@app.route('/set_language/<lang>')
+def set_language(lang):
+    """Set user's preferred language"""
+    if lang not in app.config.get('BABEL_SUPPORTED_LOCALES', ['en']):
+        flash(_('Invalid language selection'), 'danger')
+        return redirect(request.referrer or url_for('index'))
+    
+    # Update user preference if logged in
+    if current_user.is_authenticated:
+        current_user.preferred_language = lang
+        db.session.commit()
+        flash(_('Language updated successfully'), 'success')
+    
+    # Set in session
+    from flask import session
+    session['language'] = lang
+    
+    return redirect(request.referrer or url_for('index'))
+
+
+# --- Privacy Settings Route ---
+@app.route('/privacy/settings', methods=['GET', 'POST'])
+@login_required
+def privacy_settings():
+    """User privacy settings (GDPR compliance)"""
+    if request.method == 'POST':
+        current_user.contact_visible = 'contact_visible' in request.form
+        current_user.email_public = 'email_public' in request.form
+        current_user.phone_public = 'phone_public' in request.form
+        
+        phone = request.form.get('phone', '').strip()
+        if phone:
+            current_user.phone = phone
+        
+        db.session.commit()
+        flash(_('Privacy settings updated successfully'), 'success')
+        return redirect(url_for('privacy_settings'))
+    
+    return render_template('privacy_settings.html', title=_('Privacy Settings'))
+
+
+# --- GDPR Data Export Route ---
+@app.route('/export/my_data')
+@login_required
+def export_my_data():
+    """Export user's personal data (GDPR right to data portability)"""
+    user_data = current_user.export_user_data()
+    
+    # Create JSON file
+    output = io.BytesIO()
+    output.write(json.dumps(user_data, indent=2).encode('utf-8'))
+    output.seek(0)
+    
+    return send_file(output, as_attachment=True,
+                    download_name=f'my_data_{current_user.registration_no}_{date.today()}.json',
+                    mimetype='application/json')
+
 
 
 def init_db():

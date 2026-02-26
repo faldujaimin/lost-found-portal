@@ -5,8 +5,8 @@
 <div class="container" style="margin-top: 2rem;">
     <div class="card mb-6">
         <div class="card-header">
-            <h2 class="card-title">AI Smart Matches for "{{ item.item_name }}"</h2>
-            <p class="card-description">Based on AI analysis, keywords, location, and date proximity.</p>
+            <h2 class="card-title">{{ _('AI Smart Matches for') }} "{{ item.item_name }}"</h2>
+            <p class="card-description">{{ _('Based on AI analysis, keywords, location, and date proximity.') }}</p>
         </div>
     </div>
 
@@ -32,7 +32,7 @@
                     <div class="flex-1">
                         <div class="flex justify-between items-start">
                             <h3 class="font-bold text-lg">{{ m.item_name }}</h3>
-                            <span class="badge badge-success">{{ match.score }}% Match</span>
+                            <span class="badge badge-success">{{ match.score }}% {{ _('Match') }}</span>
                         </div>
                         <p class="text-sm text-muted mb-2 line-clamp-2">{{ m.description }}</p>
 
@@ -48,8 +48,8 @@
                         <div class="flex items-center justify-between mt-auto">
                             <span class="text-xs text-muted">{{ m.location }} • {{ m.lost_found_date.strftime('%b %d')
                                 }}</span>
-                            <a href="{{ url_for('item_detail', item_id=m.id) }}" class="btn btn-primary btn-sm">View &
-                                Message</a>
+                            <a href="{{ url_for('item_detail', item_id=m.id) }}" class="btn btn-primary btn-sm">{{
+                                _('View & Message') }}</a>
                         </div>
                     </div>
                 </div>
@@ -58,9 +58,10 @@
         {% else %}
         <div style="grid-column: span 2;" class="text-center py-12">
             <div style="font-size: 3rem; margin-bottom: 1rem;">🤖</div>
-            <h3 class="text-xl font-bold">No High-Confidence Matches Yet</h3>
-            <p class="text-muted">Our AI system couldn't find any direct matches in the database at this time.</p>
-            <a href="{{ url_for('items') }}" class="btn btn-secondary mt-4">Browse All Items</a>
+            <h3 class="text-xl font-bold">{{ _('No High-Confidence Matches Yet') }}</h3>
+            <p class="text-muted">{{ _("Our AI system couldn't find any direct matches in the database at this time.")
+                }}</p>
+            <a href="{{ url_for('items') }}" class="btn btn-secondary mt-4">{{ _('Browse All Items') }}</a>
         </div>
         {% endfor %}
     </div>

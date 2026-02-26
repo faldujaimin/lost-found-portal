@@ -24,7 +24,7 @@
 
                     <!-- Edit Button -->
                     <a href="{{ url_for('edit_profile') }}" class="btn btn-outline btn-block mt-4">
-                        Edit Profile
+                        {{ _('Edit Profile') }}
                     </a>
                 </div>
             </div>
@@ -32,27 +32,28 @@
             <!-- Level & Points Card -->
             <div class="card mt-4">
                 <div class="card-header">
-                    <h3 class="card-title text-sm">Level & Points</h3>
+                    <h3 class="card-title text-sm">{{ _('Level & Points') }}</h3>
                 </div>
                 <div class="card-content">
                     <div class="level-badge">
                         <span class="level-name">{{ user.level }}</span>
-                        <span class="level-points">{{ user.points or 0 }} pts</span>
+                        <span class="level-points">{{ user.points or 0 }} {{ _('pts') }}</span>
                     </div>
 
                     <!-- Progress Bar -->
                     <div class="mt-4">
                         <div class="flex justify-between items-center mb-2">
-                            <span class="text-xs text-muted">Progress to {{ next_level or 'max' }}</span>
+                            <span class="text-xs text-muted">{{ _('Progress to') }} {{ next_level or _('max') }}</span>
                             <span class="text-xs font-semibold">{{ progress_pct }}%</span>
                         </div>
                         <div class="progress-container">
                             <div class="progress-bar" style="width: {{ progress_pct }}%"></div>
                         </div>
                         {% if points_to_next is not none and points_to_next > 0 %}
-                        <p class="text-xs text-muted mt-2">{{ points_to_next }} points to {{ next_level }}</p>
+                        <p class="text-xs text-muted mt-2">{{ _('%(points)d points to %(next_level)s',
+                            points=points_to_next, next_level=next_level) }}</p>
                         {% else %}
-                        <p class="text-xs text-success mt-2">Maximum level reached!</p>
+                        <p class="text-xs text-success mt-2">{{ _('Maximum level reached!') }}</p>
                         {% endif %}
                     </div>
                 </div>
@@ -64,8 +65,8 @@
             <!-- Recent Reports Card -->
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Recent Reports</h3>
-                    <p class="card-description">Your recently reported items</p>
+                    <h3 class="card-title">{{ _('Recent Reports') }}</h3>
+                    <p class="card-description">{{ _('Your recently reported items') }}</p>
                 </div>
                 <div class="card-content">
                     {% if reports %}
@@ -92,9 +93,10 @@
                     </div>
                     {% else %}
                     <div class="empty-state-small">
-                        <p class="text-muted">You haven't reported any items yet.</p>
-                        <a href="{{ url_for('report_found') }}" class="btn btn-primary btn-sm mt-3">Report Your First
-                            Item</a>
+                        <p class="text-muted">{{ _("You haven't reported any items yet.") }}</p>
+                        <a href="{{ url_for('report_found') }}" class="btn btn-primary btn-sm mt-3">
+                            {{ _('Report Your First Item') }}
+                        </a>
                     </div>
                     {% endif %}
                 </div>
@@ -104,24 +106,26 @@
             {% if user.is_admin() or user.is_hod() %}
             <div class="card mt-4">
                 <div class="card-header">
-                    <h3 class="card-title">Admin Overview</h3>
+                    <h3 class="card-title">{{ _('Admin Overview') }}</h3>
                 </div>
                 <div class="card-content">
                     <div class="stats-grid">
                         <div class="stat-item">
-                            <div class="stat-label">Total Items</div>
+                            <div class="stat-label">{{ _('Total Items') }}</div>
                             <div class="stat-value">-</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-label">Active</div>
+                            <div class="stat-label">{{ _('Active') }}</div>
                             <div class="stat-value">-</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-label">Archived</div>
+                            <div class="stat-label">{{ _('Archived') }}</div>
                             <div class="stat-value">-</div>
                         </div>
                     </div>
-                    <a href="{{ url_for('item_history') }}" class="btn btn-outline btn-block mt-4">View Full History</a>
+                    <a href="{{ url_for('item_history') }}" class="btn btn-outline btn-block mt-4">
+                        {{ _('View Full History') }}
+                    </a>
                 </div>
             </div>
             {% endif %}

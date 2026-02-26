@@ -3,8 +3,8 @@
 <div class="container">
     <!-- Header -->
     <div class="mb-6">
-        <h1 class="text-3xl font-bold">Admin Dashboard</h1>
-        <p class="text-muted">Manage users, items, and view system analytics</p>
+        <h1 class="text-3xl font-bold">{{ _('Admin Dashboard') }}</h1>
+        <p class="text-muted">{{ _('Manage users, items, and view system analytics') }}</p>
     </div>
 
     <!-- Quick Stats -->
@@ -12,25 +12,25 @@
         <div class="card">
             <div class="card-content text-center">
                 <div class="text-3xl font-bold text-primary">{{ stats.total_users }}</div>
-                <div class="text-sm text-muted mt-2">Total Users</div>
+                <div class="text-sm text-muted mt-2">{{ _('Total Users') }}</div>
             </div>
         </div>
         <div class="card">
             <div class="card-content text-center">
                 <div class="text-3xl font-bold text-success">{{ stats.active_items }}</div>
-                <div class="text-sm text-muted mt-2">Active Items</div>
+                <div class="text-sm text-muted mt-2">{{ _('Active Items') }}</div>
             </div>
         </div>
         <div class="card">
             <div class="card-content text-center">
                 <div class="text-3xl font-bold text-warning">{{ stats.total_transactions }}</div>
-                <div class="text-sm text-muted mt-2">Total Transactions</div>
+                <div class="text-sm text-muted mt-2">{{ _('Total Transactions') }}</div>
             </div>
         </div>
         <div class="card">
             <div class="card-content text-center">
                 <div class="text-3xl font-bold text-destructive">{{ stats.archived_items }}</div>
-                <div class="text-sm text-muted mt-2">Archived Items</div>
+                <div class="text-sm text-muted mt-2">{{ _('Archived Items') }}</div>
             </div>
         </div>
     </div>
@@ -45,14 +45,14 @@
                             d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z">
                         </path>
                     </svg>
-                    Users
+                    {{ _('Users') }}
                 </button>
                 <button class="tab-btn" data-tab="transactions">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
-                    Transactions
+                    {{ _('Transactions') }}
                 </button>
                 <button class="tab-btn" data-tab="items">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -60,7 +60,7 @@
                             d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z">
                         </path>
                     </svg>
-                    Items
+                    {{ _('Items') }}
                 </button>
                 <button class="tab-btn" data-tab="analytics">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -68,7 +68,7 @@
                             d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z">
                         </path>
                     </svg>
-                    Analytics
+                    {{ _('Analytics') }}
                 </button>
             </div>
         </div>
@@ -78,15 +78,15 @@
     <div class="tab-content active" id="users-tab">
         <div class="card">
             <div class="card-header">
-                <h2 class="text-xl font-semibold">User Management</h2>
+                <h2 class="text-xl font-semibold">{{ _('User Management') }}</h2>
                 <div class="flex gap-2">
-                    <input type="text" id="user-search" placeholder="Search users..." class="input"
+                    <input type="text" id="user-search" placeholder="{{ _('Search users...') }}" class="input"
                         style="width: 300px;">
                     <select id="role-filter" class="input" style="width: 150px;">
-                        <option value="">All Roles</option>
-                        <option value="student">Student</option>
-                        <option value="admin">Admin</option>
-                        <option value="hod">HOD</option>
+                        <option value="">{{ _('All Roles') }}</option>
+                        <option value="student">{{ _('Student') }}</option>
+                        <option value="admin">{{ _('Admin') }}</option>
+                        <option value="hod">{{ _('HOD') }}</option>
                     </select>
                 </div>
             </div>
@@ -94,14 +94,15 @@
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead style="background: hsl(var(--muted) / 0.5); border-bottom: 2px solid hsl(var(--border));">
                         <tr>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">ID</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Registration No</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Full Name</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Email</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Role</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Points</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Level</th>
-                            <th style="padding: 0.75rem; text-align: center; font-weight: 600;">Actions</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('ID') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Registration No') }}
+                            </th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Full Name') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Email') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Role') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Points') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Level') }}</th>
+                            <th style="padding: 0.75rem; text-align: center; font-weight: 600;">{{ _('Actions') }}</th>
                         </tr>
                     </thead>
                     <tbody id="users-table-body">
@@ -154,15 +155,15 @@
     <div class="tab-content" id="transactions-tab">
         <div class="card">
             <div class="card-header">
-                <h2 class="text-xl font-semibold">Transaction Logs</h2>
+                <h2 class="text-xl font-semibold">{{ _('Transaction Logs') }}</h2>
                 <div class="flex gap-2">
                     <select id="action-filter" class="input" style="width: 200px;">
-                        <option value="">All Actions</option>
-                        <option value="reported_lost">Reported Lost</option>
-                        <option value="reported_found">Reported Found</option>
-                        <option value="deleted">Deleted</option>
-                        <option value="message_posted">Message Posted</option>
-                        <option value="points_awarded">Points Awarded</option>
+                        <option value="">{{ _('All Actions') }}</option>
+                        <option value="reported_lost">{{ _('Reported Lost') }}</option>
+                        <option value="reported_found">{{ _('Reported Found') }}</option>
+                        <option value="deleted">{{ _('Deleted') }}</option>
+                        <option value="message_posted">{{ _('Message Posted') }}</option>
+                        <option value="points_awarded">{{ _('Points Awarded') }}</option>
                     </select>
                     <input type="date" id="date-filter" class="input" style="width: 200px;">
                 </div>
@@ -171,12 +172,12 @@
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead style="background: hsl(var(--muted) / 0.5); border-bottom: 2px solid hsl(var(--border));">
                         <tr>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">ID</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Timestamp</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">User</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Action</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Item ID</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Details</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('ID') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Timestamp') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('User') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Action') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Item ID') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Details') }}</th>
                         </tr>
                     </thead>
                     <tbody id="transactions-table-body">
@@ -233,17 +234,17 @@
     <div class="tab-content" id="items-tab">
         <div class="card">
             <div class="card-header">
-                <h2 class="text-xl font-semibold">All Items Management</h2>
+                <h2 class="text-xl font-semibold">{{ _('All Items Management') }}</h2>
                 <div class="flex gap-2">
                     <select id="status-filter" class="input" style="width: 150px;">
-                        <option value="">All Status</option>
-                        <option value="Lost">Lost</option>
-                        <option value="Found">Found</option>
+                        <option value="">{{ _('All Status') }}</option>
+                        <option value="Lost">{{ _('Lost') }}</option>
+                        <option value="Found">{{ _('Found') }}</option>
                     </select>
                     <select id="active-filter" class="input" style="width: 150px;">
-                        <option value="">All Items</option>
-                        <option value="active">Active Only</option>
-                        <option value="archived">Archived Only</option>
+                        <option value="">{{ _('All Items') }}</option>
+                        <option value="active">{{ _('Active Only') }}</option>
+                        <option value="archived">{{ _('Archived Only') }}</option>
                     </select>
                 </div>
             </div>
@@ -251,14 +252,14 @@
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead style="background: hsl(var(--muted) / 0.5); border-bottom: 2px solid hsl(var(--border));">
                         <tr>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">ID</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Item Name</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Status</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Reporter</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Location</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Date</th>
-                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">State</th>
-                            <th style="padding: 0.75rem; text-align: center; font-weight: 600;">Actions</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('ID') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Item Name') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Status') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Reporter') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Location') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Date') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('State') }}</th>
+                            <th style="padding: 0.75rem; text-align: center; font-weight: 600;">{{ _('Actions') }}</th>
                         </tr>
                     </thead>
                     <tbody id="items-table-body">
@@ -311,7 +312,7 @@
     <div class="tab-content" id="analytics-tab">
         <div class="card">
             <div class="card-header">
-                <h2 class="text-xl font-semibold">System Analytics</h2>
+                <h2 class="text-xl font-semibold">{{ _('System Analytics') }}</h2>
             </div>
             <div class="card-content">
                 <div class="grid grid-cols-2 gap-6">

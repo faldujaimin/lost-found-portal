@@ -3,20 +3,21 @@
 <div class="hero-section">
     <div class="container hero-content">
         <div class="hero-text">
-            <h1 class="hero-title">Lost & Found Portal</h1>
-            <p class="hero-subtitle">Helping students reconnect with their lost items through AI-powered matching</p>
+            <h1 class="hero-title">{{ _('Lost & Found Portal') }}</h1>
+            <p class="hero-subtitle">{{ _('Helping students reconnect with their lost items through AI-powered
+                matching') }}</p>
 
             <div class="hero-actions">
                 <a href="{{ url_for('items') }}" class="btn btn-hero-cta btn-lg">
-                    Browse Items
+                    {{ _('Browse Items') }}
                 </a>
                 {% if current_user.is_authenticated %}
                 <a href="{{ url_for('report_found') }}" class="btn btn-outline btn-lg">
-                    Report Found Item
+                    {{ _('Report Found Item') }}
                 </a>
                 {% else %}
                 <a href="{{ url_for('register') }}" class="btn btn-outline btn-lg">
-                    Get Started
+                    {{ _('Get Started') }}
                 </a>
                 {% endif %}
             </div>
@@ -26,7 +27,7 @@
 
 <!-- Features Section -->
 <div class="container features-section">
-    <h2 class="section-title">How It Works</h2>
+    <h2 class="section-title">{{ _('How It Works') }}</h2>
 
     <div class="features-grid">
         <div class="feature-card">
@@ -36,9 +37,9 @@
                         d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path>
                 </svg>
             </div>
-            <h3 class="feature-title">Search & Browse</h3>
-            <p class="feature-description">Search through lost and found items with powerful filters and AI-powered
-                matching</p>
+            <h3 class="feature-title">{{ _('Search & Browse') }}</h3>
+            <p class="feature-description">{{ _('Search through lost and found items with powerful filters and
+                AI-powered matching') }}</p>
         </div>
 
         <div class="feature-card">
@@ -49,9 +50,9 @@
                     </path>
                 </svg>
             </div>
-            <h3 class="feature-title">Upload & Verify</h3>
-            <p class="feature-description">Upload images with OCR text extraction and AI verification for accurate
-                matching</p>
+            <h3 class="feature-title">{{ _('Upload & Verify') }}</h3>
+            <p class="feature-description">{{ _('Upload images with OCR text extraction and AI verification for accurate
+                matching') }}</p>
         </div>
 
         <div class="feature-card">
@@ -62,9 +63,9 @@
                     </path>
                 </svg>
             </div>
-            <h3 class="feature-title">Connect & Claim</h3>
-            <p class="feature-description">Communicate with finders through discussions and arrange safe item handover
-            </p>
+            <h3 class="feature-title">{{ _('Connect & Claim') }}</h3>
+            <p class="feature-description">{{ _('Communicate with finders through discussions and arrange safe item
+                handover') }}</p>
         </div>
     </div>
 </div>
@@ -75,19 +76,19 @@
     <div class="stats-banner">
         <div class="stat-box">
             <div class="stat-number">-</div>
-            <div class="stat-label">Active Items</div>
+            <div class="stat-label">{{ _('Active Items') }}</div>
         </div>
         <div class="stat-box">
             <div class="stat-number">-</div>
-            <div class="stat-label">Items Reunited</div>
+            <div class="stat-label">{{ _('Items Reunited') }}</div>
         </div>
         <div class="stat-box">
             <div class="stat-number">{{ current_user.points or 0 }}</div>
-            <div class="stat-label">Your Points</div>
+            <div class="stat-label">{{ _('Your Points') }}</div>
         </div>
         <div class="stat-box">
             <div class="stat-number">{{ current_user.level }}</div>
-            <div class="stat-label">Your Level</div>
+            <div class="stat-label">{{ _('Your Level') }}</div>
         </div>
     </div>
 </div>

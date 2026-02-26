@@ -3,16 +3,16 @@
 <div class="container">
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-2xl font-bold">Lost & Found Items</h1>
-            <p class="text-muted">Browse and search for lost or found items</p>
+            <h1 class="text-2xl font-bold">{{ _('Lost & Found Items') }}</h1>
+            <p class="text-muted">{{ _('Browse and search for lost or found items') }}</p>
         </div>
         {% if current_user.is_authenticated %}
         <div class="flex gap-2">
             <a href="{{ url_for('report_lost') }}" class="btn btn-outline">
-                Report Lost
+                {{ _('Report Lost') }}
             </a>
             <a href="{{ url_for('report_found') }}" class="btn btn-primary">
-                Report Found
+                {{ _('Report Found') }}
             </a>
         </div>
         {% endif %}
@@ -22,15 +22,15 @@
     <div class="flex gap-2 mb-6" style="border-bottom: 1px solid hsl(var(--border)); padding-bottom: 0.5rem;">
         <a href="{{ url_for('items') }}"
             class="btn btn-sm {% if not request.args.get('filter') %}btn-primary{% else %}btn-outline{% endif %}">
-            All Items
+            {{ _('All Items') }}
         </a>
         <a href="{{ url_for('items', filter='lost') }}"
             class="btn btn-sm {% if request.args.get('filter') == 'lost' %}btn-primary{% else %}btn-outline{% endif %}">
-            Lost Only
+            {{ _('Lost Only') }}
         </a>
         <a href="{{ url_for('items', filter='found') }}"
             class="btn btn-sm {% if request.args.get('filter') == 'found' %}btn-primary{% else %}btn-outline{% endif %}">
-            Found Only
+            {{ _('Found Only') }}
         </a>
     </div>
 
@@ -56,22 +56,22 @@
 
             <div class="card-content">
                 <div class="item-header">
-                    <h3 class="item-title">{{ item.item_name }}</h3>
+                    <h3 class="item-title">{{ _(item.item_name) }}</h3>
                     {% if item.status == 'Found' %}
-                    <span class="badge badge-success">Found</span>
+                    <span class="badge badge-success">{{ _('Found') }}</span>
                     {% else %}
-                    <span class="badge badge-warning">Lost</span>
+                    <span class="badge badge-warning">{{ _('Lost') }}</span>
                     {% endif %}
                 </div>
 
-                <p class="item-description">{{ item.description | truncate(100) }}</p>
+                <p class="item-description">{{ _(item.description) | truncate(100) }}</p>
 
                 <!-- Verification Score (for Found items) -->
                 {% if item.status == 'Found' and item.verification_score is not none %}
                 <div class="verification-badge">
                     {% set confidence_pct = (item.verification_score * 100) | int %}
                     <div class="verification-label">
-                        <span class="text-xs text-muted">AI Confidence:</span>
+                        <span class="text-xs text-muted">{{ _('AI Confidence:') }}</span>
                         {% if confidence_pct >= 70 %}
                         <span class="badge badge-success text-xs">{{ confidence_pct }}%</span>
                         {% elif confidence_pct >= 40 %}
@@ -88,20 +88,20 @@
                 {% endif %}
 
                 <div class="item-meta">
-                    <span>{{ item.location }}</span>
+                    <span>{{ _(item.location) }}</span>
                     <span>•</span>
-                    <span>{{ item.lost_found_date.strftime('%b %d, %Y') }}</span>
+                    <span>{{ format_date(item.lost_found_date, format='medium') }}</span>
                 </div>
 
                 <div class="item-actions">
                     <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn btn-primary btn-sm flex-1">
-                        View Details
+                        {{ _('View Details') }}
                     </a>
                     {% if current_user.is_admin() or current_user.is_hod() %}
                     <form action="{{ url_for('delete_item', item_id=item.id) }}" method="POST" style="display:inline;">
                         <button type="submit" class="btn btn-destructive btn-sm"
-                            onclick="return confirm('Archive this item?');" title="Archive">
-                            Delete
+                            onclick="return confirm('{{ _('Archive this item?') }}');" title="{{ _('Archive') }}">
+                            {{ _('Delete') }}
                         </button>
                     </form>
                     {% endif %}
@@ -118,10 +118,10 @@
                         d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path>
                 </svg>
             </div>
-            <h3 class="empty-title">No Items Found</h3>
-            <p class="empty-description">No active items match your search criteria</p>
+            <h3 class="empty-title">{{ _('No Items Found') }}</h3>
+            <p class="empty-description">{{ _('No active items match your search criteria') }}</p>
             {% if current_user.is_authenticated %}
-            <a href="{{ url_for('report_found') }}" class="btn btn-primary">Report a Found Item</a>
+            <a href="{{ url_for('report_found') }}" class="btn btn-primary">{{ _('Report a Found Item') }}</a>
             {% endif %}
         </div>
         {% endfor %}

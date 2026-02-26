@@ -19,3 +19,6 @@ psycopg2-binary
 python-dotenv
 gunicorn
 passlib
+Flask-Babel==3.1.0
+reportlab==4.0.7
+pandas==2.1.3
