@@ -20,7 +20,7 @@
                     <!-- User Info -->
                     <h2 class="profile-name">{{ user.full_name }}</h2>
                     <p class="profile-id">{{ user.registration_no }}</p>
-                    <span class="badge badge-primary">{{ user.role | capitalize }}</span>
+                    <span class="badge badge-primary">{{ _(user.role | capitalize) }}</span>
 
                     <!-- Edit Button -->
                     <a href="{{ url_for('edit_profile') }}" class="btn btn-outline btn-block mt-4">
@@ -47,7 +47,7 @@
                             <span class="text-xs font-semibold">{{ progress_pct }}%</span>
                         </div>
                         <div class="progress-container">
-                            <div class="progress-bar" style="width: {{ progress_pct }}%"></div>
+                            <div class="progress-bar" style="--width: {{ progress_pct or 0 }}%;"></div>
                         </div>
                         {% if points_to_next is not none and points_to_next > 0 %}
                         <p class="text-xs text-muted mt-2">{{ _('%(points)d points to %(next_level)s',
@@ -76,9 +76,9 @@
                             <div class="report-header">
                                 <h4 class="report-title">{{ r.item_name }}</h4>
                                 {% if r.status == 'Found' %}
-                                <span class="badge badge-success">{{ r.status }}</span>
+                                <span class="badge badge-success">{{ _('Found') }}</span>
                                 {% else %}
-                                <span class="badge badge-warning">{{ r.status }}</span>
+                                <span class="badge badge-warning">{{ _('Lost') }}</span>
                                 {% endif %}
                             </div>
                             <p class="report-description">{{ r.description[:120] }}{% if r.description|length > 120
@@ -208,6 +208,7 @@
 
     .progress-bar {
         height: 100%;
+        width: var(--width, 0%);
         background: linear-gradient(90deg, #ffd54a, #ffb74d);
         transition: width 0.7s ease;
     }

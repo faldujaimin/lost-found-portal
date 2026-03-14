@@ -119,11 +119,11 @@
                             </td>
                             <td style="padding: 0.75rem;">
                                 {% if user.role == 'admin' %}
-                                <span class="badge badge-destructive">Admin</span>
+                                <span class="badge badge-destructive">{{ _('Admin') }}</span>
                                 {% elif user.role == 'hod' %}
-                                <span class="badge badge-warning">HOD</span>
+                                <span class="badge badge-warning">{{ _('HOD') }}</span>
                                 {% else %}
-                                <span class="badge badge-primary">Student</span>
+                                <span class="badge badge-primary">{{ _('Student') }}</span>
                                 {% endif %}
                             </td>
                             <td style="padding: 0.75rem;">
@@ -134,13 +134,13 @@
                             </td>
                             <td style="padding: 0.75rem; text-align: center;">
                                 <div class="flex gap-2 justify-center">
-                                    <button onclick="viewUserDetails({{ user.id }})" class="btn btn-sm btn-outline"
-                                        title="View Details">
-                                        View
+                                    <button onclick="viewUserDetails('{{ user.id }}')" class="btn btn-sm btn-outline"
+                                        title="{{ _('View Details') }}">
+                                        {{ _('View') }}
                                     </button>
-                                    <button onclick="changeUserRole({{ user.id }}, '{{ user.registration_no }}')"
-                                        class="btn btn-sm btn-primary" title="Change Role">
-                                        Role
+                                    <button onclick="changeUserRole('{{ user.id }}', '{{ user.registration_no }}')"
+                                        class="btn btn-sm btn-primary" title="{{ _('Change Role') }}">
+                                        {{ _('Role') }}
                                     </button>
                                 </div>
                             </td>
@@ -197,15 +197,15 @@
                             </td>
                             <td style="padding: 0.75rem;">
                                 {% if log.action == 'reported_lost' %}
-                                <span class="badge badge-warning">Reported Lost</span>
+                                <span class="badge badge-warning">{{ _('Reported Lost') }}</span>
                                 {% elif log.action == 'reported_found' %}
-                                <span class="badge badge-success">Reported Found</span>
+                                <span class="badge badge-success">{{ _('Reported Found') }}</span>
                                 {% elif log.action == 'deleted' %}
-                                <span class="badge badge-destructive">Deleted</span>
+                                <span class="badge badge-destructive">{{ _('Deleted') }}</span>
                                 {% elif log.action == 'message_posted' %}
-                                <span class="badge badge-primary">Message</span>
+                                <span class="badge badge-primary">{{ _('Message') }}</span>
                                 {% elif log.action == 'points_awarded' %}
-                                <span class="badge" style="background: gold; color: black;">Points</span>
+                                <span class="badge" style="background: gold; color: black;">{{ _('Points') }}</span>
                                 {% else %}
                                 <span class="badge">{{ log.action }}</span>
                                 {% endif %}
@@ -264,8 +264,9 @@
                     </thead>
                     <tbody id="items-table-body">
                         {% for item in items %}
-                        <tr style="border-bottom: 1px solid hsl(var(--border)); {% if not item.is_active %}background: hsl(var(--destructive) / 0.05);{% endif %}"
-                            class="item-row" data-status="{{ item.status }}"
+                        <tr style="border-bottom: 1px solid hsl(var(--border));"
+                            class="item-row {% if not item.is_active %}item-archived{% endif %}"
+                            data-status="{{ item.status }}"
                             data-active="{{ 'active' if item.is_active else 'archived' }}">
                             <td style="padding: 0.75rem;">{{ item.id }}</td>
                             <td style="padding: 0.75rem;">
@@ -274,9 +275,9 @@
                             </td>
                             <td style="padding: 0.75rem;">
                                 {% if item.status == 'Found' %}
-                                <span class="badge badge-success">Found</span>
+                                <span class="badge badge-success">{{ _('Found') }}</span>
                                 {% else %}
-                                <span class="badge badge-warning">Lost</span>
+                                <span class="badge badge-warning">{{ _('Lost') }}</span>
                                 {% endif %}
                             </td>
                             <td style="padding: 0.75rem;">
@@ -291,14 +292,14 @@
                             </td>
                             <td style="padding: 0.75rem;">
                                 {% if item.is_active %}
-                                <span class="badge badge-success">Active</span>
+                                <span class="badge badge-success">{{ _('Active') }}</span>
                                 {% else %}
-                                <span class="badge badge-destructive">Archived</span>
+                                <span class="badge badge-destructive">{{ _('Archived') }}</span>
                                 {% endif %}
                             </td>
                             <td style="padding: 0.75rem; text-align: center;">
                                 <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn btn-sm btn-outline">
-                                    View
+                                    {{ _('View') }}
                                 </a>
                             </td>
                         </tr>
@@ -310,30 +311,54 @@
     </div>
 
     <div class="tab-content" id="analytics-tab">
+        <div class="card mb-6">
+            <div class="card-header">
+                <h2 class="text-xl font-semibold">{{ _('System Performance Charts') }}</h2>
+            </div>
+            <div class="card-content">
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <div style="height: 300px;">
+                        <h3 class="text-sm font-medium mb-2 text-center">{{ _('Items Trend (Last 30 Days)') }}</h3>
+                        <canvas id="itemsTrendChart"></canvas>
+                    </div>
+                    <div style="height: 300px;">
+                        <h3 class="text-sm font-medium mb-2 text-center">{{ _('User Engagement') }}</h3>
+                        <canvas id="userEngagementChart"></canvas>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-6">
+                    <div style="height: 300px;">
+                        <h3 class="text-sm font-medium mb-2 text-center">{{ _('Peak Hours Distribution') }}</h3>
+                        <canvas id="hourlyPeakChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-header">
-                <h2 class="text-xl font-semibold">{{ _('System Analytics') }}</h2>
+                <h2 class="text-xl font-semibold">{{ _('System Summary') }}</h2>
             </div>
             <div class="card-content">
                 <div class="grid grid-cols-2 gap-6">
                     <!-- User Statistics -->
                     <div>
-                        <h3 class="text-lg font-semibold mb-4">User Statistics</h3>
+                        <h3 class="text-lg font-semibold mb-4">{{ _('User Statistics') }}</h3>
                         <div class="space-y-3">
                             <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
-                                <span>Total Students</span>
+                                <span>{{ _('Total Students') }}</span>
                                 <span class="font-bold text-primary">{{ analytics.students_count }}</span>
                             </div>
                             <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
-                                <span>Total Admins</span>
+                                <span>{{ _('Total Admins') }}</span>
                                 <span class="font-bold text-destructive">{{ analytics.admins_count }}</span>
                             </div>
                             <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
-                                <span>Total HODs</span>
+                                <span>{{ _('Total HODs') }}</span>
                                 <span class="font-bold text-warning">{{ analytics.hods_count }}</span>
                             </div>
                             <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
-                                <span>Average Points per User</span>
+                                <span>{{ _('Average Points per User') }}</span>
                                 <span class="font-bold">{{ analytics.avg_points | round(1) }}</span>
                             </div>
                         </div>
@@ -341,22 +366,22 @@
 
                     <!-- Item Statistics -->
                     <div>
-                        <h3 class="text-lg font-semibold mb-4">Item Statistics</h3>
+                        <h3 class="text-lg font-semibold mb-4">{{ _('Item Statistics') }}</h3>
                         <div class="space-y-3">
                             <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
-                                <span>Total Lost Items</span>
+                                <span>{{ _('Total Lost Items') }}</span>
                                 <span class="font-bold text-warning">{{ analytics.lost_items }}</span>
                             </div>
                             <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
-                                <span>Total Found Items</span>
+                                <span>{{ _('Total Found Items') }}</span>
                                 <span class="font-bold text-success">{{ analytics.found_items }}</span>
                             </div>
                             <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
-                                <span>Match Success Rate</span>
+                                <span>{{ _('Match Success Rate') }}</span>
                                 <span class="font-bold">{{ analytics.match_rate }}%</span>
                             </div>
                             <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
-                                <span>Items This Week</span>
+                                <span>{{ _('Items This Week') }}</span>
                                 <span class="font-bold text-primary">{{ analytics.items_this_week }}</span>
                             </div>
                         </div>
@@ -364,7 +389,7 @@
 
                     <!-- Recent Activity -->
                     <div class="col-span-2">
-                        <h3 class="text-lg font-semibold mb-4">Top Contributors</h3>
+                        <h3 class="text-lg font-semibold mb-4">{{ _('Top Contributors') }}</h3>
                         <div class="space-y-2">
                             {% for user in analytics.top_contributors %}
                             <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
@@ -373,8 +398,8 @@
                                     <div class="text-xs text-muted">{{ user.registration_no }}</div>
                                 </div>
                                 <div class="text-right">
-                                    <div class="font-bold text-primary">{{ user.items_count }} items</div>
-                                    <div class="text-xs text-muted">{{ user.points }} points</div>
+                                    <div class="font-bold text-primary">{{ user.items_count }} {{ _('items') }}</div>
+                                    <div class="text-xs text-muted">{{ user.points }} {{ _('points') }}</div>
                                 </div>
                             </div>
                             {% endfor %}
@@ -418,6 +443,10 @@
 
     .tab-content.active {
         display: block;
+    }
+
+    .item-archived {
+        background: hsl(var(--destructive) / 0.05);
     }
 
     tbody tr:hover {
@@ -466,6 +495,21 @@
             document.getElementById(tab + '-tab').classList.add('active');
         });
     });
+
+    // Handle URL hash for tab deep-linking
+    function handleHash() {
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            const tabBtn = document.querySelector(`.tab-btn[data-tab="${hash}"]`);
+            if (tabBtn) {
+                tabBtn.click();
+            }
+        }
+    }
+
+    // Call on load and hash change
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
 
     // User search
     document.getElementById('user-search')?.addEventListener('input', (e) => {
@@ -553,5 +597,65 @@
                 });
         }
     }
+    // Charts Implementation
+    let trendChart, engChart, peakChart;
+
+    function initCharts() {
+        if (trendChart) return; // Already init
+
+        fetch('/admin/analytics/data')
+            .then(res => res.json())
+            .then(data => {
+                const dates = data.map(d => new Date(d.date).toLocaleDateString());
+
+                // 1. Items Trend Chart
+                const trendCtx = document.getElementById('itemsTrendChart').getContext('2d');
+                trendChart = new Chart(trendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            { label: 'Lost', data: data.map(d => d.lost), borderColor: '#f59e0b', tension: 0.3 },
+                            { label: 'Found', data: data.map(d => d.found), borderColor: '#10b981', tension: 0.3 },
+                            { label: 'Returned', data: data.map(d => d.returned), borderColor: '#3b82f6', tension: 0.3 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                // 2. User Engagement Chart
+                const engCtx = document.getElementById('userEngagementChart').getContext('2d');
+                engChart = new Chart(engCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            { label: 'New Users', data: data.map(d => d.new_users), backgroundColor: '#3b82f6' },
+                            { label: 'Logins', data: data.map(d => d.logins), backgroundColor: '#8b5cf6' }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                // 3. Hourly Peak Chart
+                const lastDay = data[data.length - 1];
+                const hours = Object.keys(lastDay.peak_hours).sort((a, b) => a - b);
+                const counts = hours.map(h => lastDay.peak_hours[h]);
+
+                const peakCtx = document.getElementById('hourlyPeakChart').getContext('2d');
+                peakChart = new Chart(peakCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: hours.map(h => h + ':00'),
+                        datasets: [{ label: 'Reports', data: counts, backgroundColor: '#f43f5e' }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            });
+    }
+
+    // Trigger charts when analytics tab is clicked
+    document.querySelector('[data-tab="analytics"]').addEventListener('click', initCharts);
+    if (window.location.hash === '#analytics') initCharts();
 </script>
 {% endblock %}

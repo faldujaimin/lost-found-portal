@@ -18,7 +18,6 @@ from wtforms.validators import DataRequired, Length, EqualTo, ValidationError, R
 from wtforms.widgets import DateInput
 from flask_wtf.file import FileAllowed
 from config import Config
-from blockchain import Blockchain, Block
 import json
 import io
 import csv
@@ -207,104 +206,23 @@ try:
 except Exception:
     TZ_INDIA = None
 
-# --- Blockchain Helpers ---
-def record_to_blockchain(item):
-    """Adds a new block to the persistent chain for the given item."""
-    # Get the latest block from DB to link the chain
-    latest_db_block = BlockchainBlock.query.order_by(BlockchainBlock.index.desc()).first()
-    
-    if not latest_db_block:
-        # Create Genesis block if it doesn't exist
-        genesis = Block(0, _dt.utcnow().timestamp(), 0, "Genesis Block", "0")
-        db_genesis = BlockchainBlock(
-            index=genesis.index,
-            timestamp=genesis.timestamp,
-            item_id=None,
-            item_data=genesis.item_data,
-            previous_hash=genesis.previous_hash,
-            nonce=genesis.nonce,
-            hash=genesis.hash
-        )
-        db.session.add(db_genesis)
-        db.session.commit()
-        latest_db_block = db_genesis
-    
-    # Prepare item data for hashing
-    item_data_dict = {
-        "item_name": item.item_name,
-        "description": item.description,
-        "location": item.location,
-        "reporter": item.reporter.registration_no if item.reporter else "unknown"
-    }
-    item_data_json = json.dumps(item_data_dict, sort_keys=True)
-    
-    # Create the new block
-    # We use Blockchain difficulty 2 for speed
-    new_block_obj = Block(
-        index=latest_db_block.index + 1,
-        timestamp=_dt.utcnow().timestamp(),
-        item_id=item.id,
-        item_data=item_data_json,
-        previous_hash=latest_db_block.hash
-    )
-    new_block_obj.mine_block(2)
-    
-    # Save block to DB
-    db_block = BlockchainBlock(
-        index=new_block_obj.index,
-        timestamp=new_block_obj.timestamp,
-        item_id=item.id,
-        item_data=new_block_obj.item_data,
-        previous_hash=new_block_obj.previous_hash,
-        nonce=new_block_obj.nonce,
-        hash=new_block_obj.hash
-    )
-    db.session.add(db_block)
-    
-    # Update item with the block hash
-    item.blockchain_hash = new_block_obj.hash
-    db.session.commit()
-    print(f"DEBUG: Recorded Item {item.id} to Blockchain with hash {new_block_obj.hash[:10]}...")
-
-def verify_item_blockchain(item_id):
-    """Verifies that the item data matches its blockchain record."""
-    item = Item.query.get(item_id)
-    if not item or not item.blockchain_hash:
-        return False, "Item not found or not in blockchain"
-    
-    block = BlockchainBlock.query.filter_by(hash=item.blockchain_hash).first()
-    if not block:
-        return False, "Blockchain record missing"
-    
-    # Re-calculate hash from stored block data to ensure block integrity
-    recalc_block = Block(
-        index=block.index,
-        timestamp=block.timestamp,
-        item_id=block.item_id,
-        item_data=block.item_data,
-        previous_hash=block.previous_hash,
-        nonce=block.nonce
-    )
-    if recalc_block.hash != block.hash:
-        return False, "Block hash mismatch (Internal Tampering!)"
-    
-    # Verify current item data against block data
+def create_notification(user_id, message, link=None, type='info'):
+    """Helper to create a systematic notification for a user."""
     try:
-        stored_data = json.loads(block.item_data)
-        current_data = {
-            "item_name": item.item_name,
-            "description": item.description,
-            "location": item.location,
-            "reporter": item.reporter.registration_no if item.reporter else "unknown"
-        }
-        
-        if json.dumps(stored_data, sort_keys=True) != json.dumps(current_data, sort_keys=True):
-            return False, "Item data has been tampered with!"
+        notif = Notification(
+            user_id=user_id,
+            message=message,
+            link=link,
+            type=type
+        )
+        db.session.add(notif)
+        db.session.commit()
+        return True
     except Exception as e:
-        return False, f"Verification error: {e}"
-        
-    return True, "Verified authentic"
-# ...existing code...
+        print(f"ERROR: Failed to create notification: {e}")
+        db.session.rollback()
+        return False
+
 # --- Helper Functions ---
 # Checks if an uploaded filename has an allowed extension
 def allowed_file(filename):
@@ -1623,7 +1541,6 @@ class Item(db.Model):
     ocr_extracted_text = db.Column(db.Text, nullable=True) # Text extracted from image via OCR
     verification_score = db.Column(db.Float, nullable=True) # Cross-verification confidence (0.0-1.0)
     verification_details = db.Column(db.Text, nullable=True) # JSON string with detailed verification results
-    blockchain_hash = db.Column(db.String(64), nullable=True) # Linked to blockchain record
 
     def __repr__(self):
         # Defensive check for reporter existence before accessing .full_name
@@ -1843,20 +1760,22 @@ class Message(db.Model):
     def __repr__(self):
         return f"Message(id={self.id}, item_id={self.item_id}, user_id={self.user_id}, ts={self.timestamp})"
 
-class BlockchainBlock(db.Model):
+class Notification(db.Model):
+    """Stores user specific alerts and notifications."""
     id = db.Column(db.Integer, primary_key=True)
-    index = db.Column(db.Integer, nullable=False)
-    timestamp = db.Column(db.Float, nullable=False)
-    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=True) # Genesis block has no item
-    item_data = db.Column(db.Text, nullable=False) # JSON string of item data
-    previous_hash = db.Column(db.String(64), nullable=False)
-    nonce = db.Column(db.Integer, nullable=False)
-    hash = db.Column(db.String(64), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    link = db.Column(db.String(255), nullable=True) # Optional URL to redirect to
+    is_read = db.Column(db.Boolean, default=False)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+    type = db.Column(db.String(20), default='info') # 'info', 'match', 'message', 'success'
 
-    item = db.relationship('Item', backref='blockchain_records', foreign_keys=[item_id])
+    user = db.relationship('User', backref='notifications', foreign_keys=[user_id])
 
     def __repr__(self):
-        return f"<Block {self.index} - Hash: {self.hash[:8]}...>"
+        return f"Notification(id={self.id}, user_id={self.user_id}, read={self.is_read})"
+
+
 
 
 class Analytics(db.Model):
@@ -1950,8 +1869,8 @@ class ProfilePhotoForm(FlaskForm):
 
 
 class MessageForm(FlaskForm):
-    content = TextAreaField('Message', validators=[DataRequired(), Length(min=1, max=1000)])
-    submit = SubmitField('Send')
+    content = TextAreaField(_l('Message'), validators=[DataRequired(), Length(min=1, max=1000)])
+    submit = SubmitField(_l('Send'))
 
 
 # Removed HistoryPasswordForm: history password protection was removed per user request.
@@ -2083,8 +2002,6 @@ def report_lost():
                     reporter=current_user)
         db.session.add(item)
         db.session.commit()
-        # Record to blockchain
-        record_to_blockchain(item)
         # Log the report action
         log = ReportLog(user_id=current_user.id, registration_no=current_user.registration_no,
                         action='reported_lost', item_id=item.id,
@@ -2097,6 +2014,24 @@ def report_lost():
         # After saving, check for matching active found reports
         matches = find_smart_matches(item)
         if matches:
+            # Notify the reporter about matches
+            create_notification(
+                current_user.id,
+                _('🤖 AI found %(count)d potential matches for your reported item: "%(name)s"!', count=len(matches), name=item.item_name),
+                link=url_for('item_matches', item_id=item.id),
+                type='match'
+            )
+            
+            # Notify the finders that someone lost an item matching theirs
+            for match in matches:
+                matched_item = match['item']
+                create_notification(
+                    matched_item.reported_by_id,
+                    _('Someone just reported a lost item ("%(name)s") that matches an item you found!', name=item.item_name),
+                    link=url_for('item_detail', item_id=matched_item.id),
+                    type='match'
+                )
+
             flash(_('🤖 AI discovered %(count)d potential found reports that match your item!', count=len(matches)), 'info')
             return redirect(url_for('item_matches', item_id=item.id))
 
@@ -2317,8 +2252,6 @@ def report_found():
             print("DEBUG: Item added to session. Committing...")
             db.session.commit()
             print(f"DEBUG: Item committed. ID: {item.id}")
-            # Record to blockchain
-            record_to_blockchain(item)
             # Log the found report
             log = ReportLog(user_id=current_user.id, registration_no=current_user.registration_no,
                             action='reported_found', item_id=item.id,
@@ -2339,6 +2272,24 @@ def report_found():
                                 action='points_awarded', item_id=item.id,
                                 details=f"Awarded {points_awarded} points for AI smart-matching {len(matches)} lost report(s)")
                 db.session.add(plog)
+                
+                # Notify the finder
+                create_notification(
+                    current_user.id,
+                    _('🤖 Great job! AI found %(count)d lost reports matching your found item. You earned %(points)d points!', count=len(matches), points=points_awarded),
+                    link=url_for('item_matches', item_id=item.id),
+                    type='success'
+                )
+
+                # Notify the owners of lost items
+                for match in matches:
+                    matched_item = match['item']
+                    create_notification(
+                        matched_item.reported_by_id,
+                        _('Someone found an item that might be your "%(name)s"! Check it out.', name=matched_item.item_name),
+                        link=url_for('item_detail', item_id=item.id),
+                        type='match'
+                    )
                 db.session.commit()
 
             if points_awarded:
@@ -2409,6 +2360,30 @@ def item_detail(item_id):
         db.session.add(mlog)
         db.session.commit()
         flash(_('Message posted.'), 'success')
+        
+        # Notify the other party
+        # The other party is either the reporter of the item or anyone who has messaged about this item
+        # Simplified: notify the reporter if the messenger is someone else, or notify everyone else who messaged
+        if current_user.id != item.reported_by_id:
+            # Notifier is a viewer, notify the reporter
+            create_notification(
+                item.reported_by_id,
+                _('New message from %(user)s about your item: "%(name)s"', user=current_user.full_name, name=item.item_name),
+                link=url_for('item_detail', item_id=item.id),
+                type='message'
+            )
+        else:
+            # Notifier is the reporter, notify everyone who messaged
+            messengers = db.session.query(Message.user_id).filter_by(item_id=item.id).distinct().all()
+            for (uid,) in messengers:
+                if uid != current_user.id:
+                    create_notification(
+                        uid,
+                        _('Reporter messaged about "%(name)s"', name=item.item_name),
+                        link=url_for('item_detail', item_id=item.id),
+                        type='message'
+                    )
+        
         return redirect(url_for('item_detail', item_id=item.id))
 
     # Load messages for this item (most recent last)
@@ -2867,13 +2842,6 @@ def api_extract_text():
             'message': f'Server error: {str(e)}'
         }), 500, {'ContentType': 'application/json'}
 
-@app.route('/api/verify_item/<int:item_id>')
-def api_verify_item(item_id):
-    is_valid, msg = verify_item_blockchain(item_id)
-    return jsonify({
-        'valid': is_valid,
-        'message': msg
-    })
 
 
 @app.route('/item/<int:item_id>/matches')
@@ -3305,6 +3273,48 @@ def init_db():
 
 # Run DB initialization on import (for Gunicorn/Render)
 init_db()
+
+@app.route("/notifications")
+@login_required
+def notifications():
+    """View all notifications for the current user."""
+    notifs = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.timestamp.desc()).all()
+    # Mark all as read when viewing this page
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({Notification.is_read: True})
+    db.session.commit()
+    return render_template('notifications.html', title=_('Notifications'), notifications=notifs)
+
+@app.route("/api/notifications/unread_count")
+@login_required
+def unread_notification_count():
+    """Returns the number of unread notifications for the current user."""
+    count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+    return jsonify({"count": count})
+
+@app.route("/admin/analytics/data")
+@login_required
+def admin_analytics_data():
+    """Returns analytics data for the dashboard charts as JSON."""
+    if not (current_user.is_admin() or current_user.is_hod()):
+        abort(403)
+    
+    analytics_objs = get_analytics_summary(30)
+    
+    data = []
+    for a in analytics_objs:
+        data.append({
+            "date": a.date.isoformat(),
+            "lost": a.items_lost_count,
+            "found": a.items_found_count,
+            "returned": a.items_returned_count,
+            "new_users": a.new_users_count,
+            "active_users": a.active_users_count,
+            "logins": a.total_logins,
+            "success_rate": a.success_rate,
+            "peak_hours": json.loads(a.peak_hours) if a.peak_hours else {}
+        })
+    
+    return jsonify(data)
 
 if __name__ == '__main__':
     app.run(debug=True)

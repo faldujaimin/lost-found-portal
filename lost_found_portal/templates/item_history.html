@@ -36,31 +36,26 @@
                             _('ID') }}</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
                             _('Item') }}</th>
-                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">
-                            {{ _('Description') }}</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
-                            _('Status') }}
-                        </th>
+                            _('Description') }}</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
-                            _('Image') }}
-                        </th>
+                            _('Status') }}</th>
+                        <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
+                            _('Image') }}</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
                             _('Date') }}</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
-                            _('Location') }}
-                        </th>
+                            _('Location') }}</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
                             _('Reported By') }}</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
                             _('Reported At') }}</th>
                         <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.875rem;">{{
-                            _('State') }}
-                        </th>
+                            _('State') }}</th>
                         <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.875rem;">{{
                             _('Deleted Info') }}</th>
                         <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.875rem;">{{
-                            _('Actions') }}
-                        </th>
+                            _('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -89,9 +84,9 @@
                         </td>
                         <td style="padding: 0.75rem;">
                             {% if item.status == 'Found' %}
-                            <span class="badge badge-success">Found</span>
+                            <span class="badge badge-success">{{ _('Found') }}</span>
                             {% else %}
-                            <span class="badge badge-warning">Lost</span>
+                            <span class="badge badge-warning">{{ _('Lost') }}</span>
                             {% endif %}
                         </td>
                         <td style="padding: 0.75rem;">
@@ -120,9 +115,9 @@
                         </td>
                         <td style="padding: 0.75rem; text-align: center;">
                             {% if item.is_active %}
-                            <span class="badge badge-success">Active</span>
+                            <span class="badge badge-success">{{ _('Active') }}</span>
                             {% else %}
-                            <span class="badge badge-destructive">Archived</span>
+                            <span class="badge badge-destructive">{{ _('Archived') }}</span>
                             {% endif %}
                         </td>
                         <td style="padding: 0.75rem;">
@@ -137,7 +132,7 @@
                         <td style="padding: 0.75rem; text-align: center;">
                             <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn btn-sm btn-outline"
                                 title="View Details">
-                                View
+                                {{ _('View') }}
                             </a>
                         </td>
                     </tr>
@@ -152,7 +147,7 @@
                                     </path>
                                 </svg>
                             </div>
-                            <p class="text-muted">No items found in history</p>
+                            <p class="text-muted">{{ _('No items found in history') }}</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -168,16 +163,16 @@
                 <div style="text-align: center;">
                     <div class="text-2xl font-bold text-primary">{{ items | selectattr('is_active') | list | length }}
                     </div>
-                    <div class="text-sm text-muted mt-1">Active Items</div>
+                    <div class="text-sm text-muted mt-1">{{ _('Active Items') }}</div>
                 </div>
                 <div style="text-align: center;">
                     <div class="text-2xl font-bold text-destructive">{{ items | rejectattr('is_active') | list | length
                         }}</div>
-                    <div class="text-sm text-muted mt-1">Archived Items</div>
+                    <div class="text-sm text-muted mt-1">{{ _('Archived Items') }}</div>
                 </div>
                 <div style="text-align: center;">
                     <div class="text-2xl font-bold">{{ items | length }}</div>
-                    <div class="text-sm text-muted mt-1">Total Items</div>
+                    <div class="text-sm text-muted mt-1">{{ _('Total Items') }}</div>
                 </div>
             </div>
         </div>
