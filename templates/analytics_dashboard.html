@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-4">
+            <i class="fas fa-chart-line"></i> {{ _('Analytics Dashboard') }}
+        </h1>
+        <div>
+            <a href="{{ url_for('export_items', format='csv') }}" class="btn btn-success">
+                <i class="fas fa-file-csv"></i> {{ _('Export Items (CSV)') }}
+            </a>
+            <a href="{{ url_for('export_items', format='pdf') }}" class="btn btn-danger">
+                <i class="fas fa-file-pdf"></i> {{ _('Export Items (PDF)') }}
+            </a>
+            <a href="{{ url_for('export_analytics', format='csv') }}" class="btn btn-info">
+                <i class="fas fa-chart-bar"></i> {{ _('Export Analytics (CSV)') }}
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-users"></i> {{ _('Total Users') }}</h5>
+                    <h2 class="card-text">{{ total_users }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-exclamation-circle"></i> {{ _('Items Lost (Active)') }}</h5>
+                    <h2 class="card-text">{{ items_lost_active }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-check-circle"></i> {{ _('Items Found (Active)') }}</h5>
+                    <h2 class="card-text">{{ items_found_active }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-percentage"></i> {{ _('Success Rate') }}</h5>
+                    <h2 class="card-text">{{ "%.1f"|format(success_rate) }}%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Stats -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ _('Last 30 Days Summary') }}</h5>
+                    <ul class="list-unstyled">
+                        <li><strong>{{ _('Items Lost:') }}</strong> {{ total_items_lost }}</li>
+                        <li><strong>{{ _('Items Found:') }}</strong> {{ total_items_found }}</li>
+                        <li><strong>{{ _('Items Returned:') }}</strong> {{ total_items_returned }}</li>
+                        <li><strong>{{ _('Average Return Time:') }}</strong> {{ "%.1f"|format(avg_return_days) }} {{
+                            _('days') }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ _('System Status') }}</h5>
+                    <ul class="list-unstyled">
+                        <li><strong>{{ _('Total Items in System:') }}</strong> {{ total_items }}</li>
+                        <li><strong>{{ _('Success Rate:') }}</strong> {{ "%.2f"|format(success_rate) }}%</li>
+                        <li><strong>{{ _('Active Lost Items:') }}</strong> {{ items_lost_active }}</li>
+                        <li><strong>{{ _('Active Found Items:') }}</strong> {{ items_found_active }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-area"></i> {{ _('Items Trend (Last 30 Days)') }}</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-clock"></i> {{ _('Peak Hours') }}</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="peakHoursChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popular Items and Locations -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-star"></i> {{ _('Most Commonly Lost/Found Items') }}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>{{ _('Item Name') }}</th>
+                                <th>{{ _('Count') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item, count in popular_items.items() | sort(attribute='1', reverse=True) | list[:10]
+                            %}
+                            <tr>
+                                <td>{{ item }}</td>
+                                <td><span class="badge bg-primary">{{ count }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-map-marker-alt"></i> {{ _('Popular Locations') }}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>{{ _('Location') }}</th>
+                                <th>{{ _('Reports') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for location, count in popular_locations.items() | sort(attribute='1', reverse=True) |
+                            list[:10] %}
+                            <tr>
+                                <td>{{ location }}</td>
+                                <td><span class="badge bg-success">{{ count }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Analytics Data Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-table"></i> {{ _('Daily Analytics (Last 30 Days)') }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>{{ _('Date') }}</th>
+                            <th>{{ _('Lost') }}</th>
+                            <th>{{ _('Found') }}</th>
+                            <th>{{ _('Returned') }}</th>
+                            <th>{{ _('New Users') }}</th>
+                            <th>{{ _('Active Users') }}</th>
+                            <th>{{ _('Logins') }}</th>
+                            <th>{{ _('Success Rate') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in analytics_data | reverse %}
+                        <tr>
+                            <td>{{ a.date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ a.items_lost_count }}</td>
+                            <td>{{ a.items_found_count }}</td>
+                            <td>{{ a.items_returned_count }}</td>
+                            <td>{{ a.new_users_count }}</td>
+                            <td>{{ a.active_users_count }}</td>
+                            <td>{{ a.total_logins }}</td>
+                            <td>{{ "%.2f"|format(a.success_rate) }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    // Prepare data for charts
+    const analyticsData = {{ analytics_data | tojson }};
+    const dates = analyticsData.map(a => a.date);
+    const itemsLost = analyticsData.map(a => a.items_lost_count);
+    const itemsFound = analyticsData.map(a => a.items_found_count);
+    const itemsReturned = analyticsData.map(a => a.items_returned_count);
+
+    // Trend Chart
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [
+                {
+                    label: 'Items Lost',
+                    data: itemsLost,
+                    borderColor: 'rgb(220, 53, 69)',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    tension: 0.3
+                },
+                {
+                    label: 'Items Found',
+                    data: itemsFound,
+                    borderColor: 'rgb(25, 135, 84)',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    tension: 0.3
+                },
+                {
+                    label: 'Items Returned',
+                    data: itemsReturned,
+                    borderColor: 'rgb(13, 110, 253)',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Peak Hours Chart
+    const peakHours = {{ peak_hours | tojson }};
+    const hoursLabels = Object.keys(peakHours).sort((a, b) => parseInt(a) - parseInt(b));
+    const hoursCounts = hoursLabels.map(h => peakHours[h]);
+
+    const peakCtx = document.getElementById('peakHoursChart').getContext('2d');
+    new Chart(peakCtx, {
+        type: 'bar',
+        data: {
+            labels: hoursLabels.map(h => h + ':00'),
+            datasets: [{
+                label: 'Reports',
+                data: hoursCounts,
+                backgroundColor: 'rgba(13, 110, 253, 0.5)',
+                borderColor: 'rgb(13, 110, 253)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

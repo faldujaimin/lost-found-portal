@@ -1,0 +1,661 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold">{{ _('Admin Dashboard') }}</h1>
+        <p class="text-muted">{{ _('Manage users, items, and view system analytics') }}</p>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="card">
+            <div class="card-content text-center">
+                <div class="text-3xl font-bold text-primary">{{ stats.total_users }}</div>
+                <div class="text-sm text-muted mt-2">{{ _('Total Users') }}</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-content text-center">
+                <div class="text-3xl font-bold text-success">{{ stats.active_items }}</div>
+                <div class="text-sm text-muted mt-2">{{ _('Active Items') }}</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-content text-center">
+                <div class="text-3xl font-bold text-warning">{{ stats.total_transactions }}</div>
+                <div class="text-sm text-muted mt-2">{{ _('Total Transactions') }}</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-content text-center">
+                <div class="text-3xl font-bold text-destructive">{{ stats.archived_items }}</div>
+                <div class="text-sm text-muted mt-2">{{ _('Archived Items') }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="card mb-6">
+        <div class="card-content" style="padding: 0;">
+            <div class="flex border-b border-border">
+                <button class="tab-btn active" data-tab="users">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z">
+                        </path>
+                    </svg>
+                    {{ _('Users') }}
+                </button>
+                <button class="tab-btn" data-tab="transactions">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    {{ _('Transactions') }}
+                </button>
+                <button class="tab-btn" data-tab="items">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z">
+                        </path>
+                    </svg>
+                    {{ _('Items') }}
+                </button>
+                <button class="tab-btn" data-tab="analytics">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z">
+                        </path>
+                    </svg>
+                    {{ _('Analytics') }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content active" id="users-tab">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="text-xl font-semibold">{{ _('User Management') }}</h2>
+                <div class="flex gap-2">
+                    <input type="text" id="user-search" placeholder="{{ _('Search users...') }}" class="input"
+                        style="width: 300px;">
+                    <select id="role-filter" class="input" style="width: 150px;">
+                        <option value="">{{ _('All Roles') }}</option>
+                        <option value="student">{{ _('Student') }}</option>
+                        <option value="admin">{{ _('Admin') }}</option>
+                        <option value="hod">{{ _('HOD') }}</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-content" style="padding: 0; overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: hsl(var(--muted) / 0.5); border-bottom: 2px solid hsl(var(--border));">
+                        <tr>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('ID') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Registration No') }}
+                            </th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Full Name') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Email') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Role') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Points') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Level') }}</th>
+                            <th style="padding: 0.75rem; text-align: center; font-weight: 600;">{{ _('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        {% for user in users %}
+                        <tr style="border-bottom: 1px solid hsl(var(--border));" class="user-row"
+                            data-role="{{ user.role }}">
+                            <td style="padding: 0.75rem;">{{ user.id }}</td>
+                            <td style="padding: 0.75rem;">
+                                <span class="font-medium">{{ user.registration_no }}</span>
+                            </td>
+                            <td style="padding: 0.75rem;">{{ user.full_name }}</td>
+                            <td style="padding: 0.75rem;">
+                                <span class="text-sm text-muted">{{ user.email or 'N/A' }}</span>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                {% if user.role == 'admin' %}
+                                <span class="badge badge-destructive">{{ _('Admin') }}</span>
+                                {% elif user.role == 'hod' %}
+                                <span class="badge badge-warning">{{ _('HOD') }}</span>
+                                {% else %}
+                                <span class="badge badge-primary">{{ _('Student') }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <span class="font-semibold">{{ user.points or 0 }}</span>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <span class="badge badge-success">{{ user.level }}</span>
+                            </td>
+                            <td style="padding: 0.75rem; text-align: center;">
+                                <div class="flex gap-2 justify-center">
+                                    <button onclick="viewUserDetails('{{ user.id }}')" class="btn btn-sm btn-outline"
+                                        title="{{ _('View Details') }}">
+                                        {{ _('View') }}
+                                    </button>
+                                    <button onclick="changeUserRole('{{ user.id }}', '{{ user.registration_no }}')"
+                                        class="btn btn-sm btn-primary" title="{{ _('Change Role') }}">
+                                        {{ _('Role') }}
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="transactions-tab">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="text-xl font-semibold">{{ _('Transaction Logs') }}</h2>
+                <div class="flex gap-2">
+                    <select id="action-filter" class="input" style="width: 200px;">
+                        <option value="">{{ _('All Actions') }}</option>
+                        <option value="reported_lost">{{ _('Reported Lost') }}</option>
+                        <option value="reported_found">{{ _('Reported Found') }}</option>
+                        <option value="deleted">{{ _('Deleted') }}</option>
+                        <option value="message_posted">{{ _('Message Posted') }}</option>
+                        <option value="points_awarded">{{ _('Points Awarded') }}</option>
+                    </select>
+                    <input type="date" id="date-filter" class="input" style="width: 200px;">
+                </div>
+            </div>
+            <div class="card-content" style="padding: 0; overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: hsl(var(--muted) / 0.5); border-bottom: 2px solid hsl(var(--border));">
+                        <tr>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('ID') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Timestamp') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('User') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Action') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Item ID') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Details') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactions-table-body">
+                        {% for log in transactions %}
+                        <tr style="border-bottom: 1px solid hsl(var(--border));" class="transaction-row"
+                            data-action="{{ log.action }}">
+                            <td style="padding: 0.75rem;">{{ log.id }}</td>
+                            <td style="padding: 0.75rem;">
+                                <div class="text-sm">{{ log.timestamp.strftime('%b %d, %Y') }}</div>
+                                <div class="text-xs text-muted">{{ log.timestamp.strftime('%H:%M:%S') }}</div>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <div class="font-medium">{{ log.registration_no }}</div>
+                                {% if log.user %}
+                                <div class="text-xs text-muted">{{ log.user.full_name }}</div>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                {% if log.action == 'reported_lost' %}
+                                <span class="badge badge-warning">{{ _('Reported Lost') }}</span>
+                                {% elif log.action == 'reported_found' %}
+                                <span class="badge badge-success">{{ _('Reported Found') }}</span>
+                                {% elif log.action == 'deleted' %}
+                                <span class="badge badge-destructive">{{ _('Deleted') }}</span>
+                                {% elif log.action == 'message_posted' %}
+                                <span class="badge badge-primary">{{ _('Message') }}</span>
+                                {% elif log.action == 'points_awarded' %}
+                                <span class="badge" style="background: gold; color: black;">{{ _('Points') }}</span>
+                                {% else %}
+                                <span class="badge">{{ log.action }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                {% if log.item_id %}
+                                <a href="{{ url_for('item_detail', item_id=log.item_id) }}"
+                                    class="text-primary hover:underline">
+                                    #{{ log.item_id }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <span class="text-sm">{{ log.details | truncate(80) }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="items-tab">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="text-xl font-semibold">{{ _('All Items Management') }}</h2>
+                <div class="flex gap-2">
+                    <select id="status-filter" class="input" style="width: 150px;">
+                        <option value="">{{ _('All Status') }}</option>
+                        <option value="Lost">{{ _('Lost') }}</option>
+                        <option value="Found">{{ _('Found') }}</option>
+                    </select>
+                    <select id="active-filter" class="input" style="width: 150px;">
+                        <option value="">{{ _('All Items') }}</option>
+                        <option value="active">{{ _('Active Only') }}</option>
+                        <option value="archived">{{ _('Archived Only') }}</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-content" style="padding: 0; overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: hsl(var(--muted) / 0.5); border-bottom: 2px solid hsl(var(--border));">
+                        <tr>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('ID') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Item Name') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Status') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Reporter') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Location') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('Date') }}</th>
+                            <th style="padding: 0.75rem; text-align: left; font-weight: 600;">{{ _('State') }}</th>
+                            <th style="padding: 0.75rem; text-align: center; font-weight: 600;">{{ _('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-table-body">
+                        {% for item in items %}
+                        <tr style="border-bottom: 1px solid hsl(var(--border));"
+                            class="item-row {% if not item.is_active %}item-archived{% endif %}"
+                            data-status="{{ item.status }}"
+                            data-active="{{ 'active' if item.is_active else 'archived' }}">
+                            <td style="padding: 0.75rem;">{{ item.id }}</td>
+                            <td style="padding: 0.75rem;">
+                                <div class="font-medium">{{ item.item_name }}</div>
+                                <div class="text-xs text-muted">{{ item.description | truncate(40) }}</div>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                {% if item.status == 'Found' %}
+                                <span class="badge badge-success">{{ _('Found') }}</span>
+                                {% else %}
+                                <span class="badge badge-warning">{{ _('Lost') }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <div class="text-sm">{{ item.reporter.full_name }}</div>
+                                <div class="text-xs text-muted">{{ item.reporter.registration_no }}</div>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <span class="text-sm">{{ item.location | truncate(30) }}</span>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <span class="text-sm">{{ item.lost_found_date.strftime('%b %d, %Y') }}</span>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                {% if item.is_active %}
+                                <span class="badge badge-success">{{ _('Active') }}</span>
+                                {% else %}
+                                <span class="badge badge-destructive">{{ _('Archived') }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 0.75rem; text-align: center;">
+                                <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn btn-sm btn-outline">
+                                    {{ _('View') }}
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="analytics-tab">
+        <div class="card mb-6">
+            <div class="card-header">
+                <h2 class="text-xl font-semibold">{{ _('System Performance Charts') }}</h2>
+            </div>
+            <div class="card-content">
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <div style="height: 300px;">
+                        <h3 class="text-sm font-medium mb-2 text-center">{{ _('Items Trend (Last 30 Days)') }}</h3>
+                        <canvas id="itemsTrendChart"></canvas>
+                    </div>
+                    <div style="height: 300px;">
+                        <h3 class="text-sm font-medium mb-2 text-center">{{ _('User Engagement') }}</h3>
+                        <canvas id="userEngagementChart"></canvas>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-6">
+                    <div style="height: 300px;">
+                        <h3 class="text-sm font-medium mb-2 text-center">{{ _('Peak Hours Distribution') }}</h3>
+                        <canvas id="hourlyPeakChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="text-xl font-semibold">{{ _('System Summary') }}</h2>
+            </div>
+            <div class="card-content">
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- User Statistics -->
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">{{ _('User Statistics') }}</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
+                                <span>{{ _('Total Students') }}</span>
+                                <span class="font-bold text-primary">{{ analytics.students_count }}</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
+                                <span>{{ _('Total Admins') }}</span>
+                                <span class="font-bold text-destructive">{{ analytics.admins_count }}</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
+                                <span>{{ _('Total HODs') }}</span>
+                                <span class="font-bold text-warning">{{ analytics.hods_count }}</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
+                                <span>{{ _('Average Points per User') }}</span>
+                                <span class="font-bold">{{ analytics.avg_points | round(1) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item Statistics -->
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">{{ _('Item Statistics') }}</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
+                                <span>{{ _('Total Lost Items') }}</span>
+                                <span class="font-bold text-warning">{{ analytics.lost_items }}</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
+                                <span>{{ _('Total Found Items') }}</span>
+                                <span class="font-bold text-success">{{ analytics.found_items }}</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
+                                <span>{{ _('Match Success Rate') }}</span>
+                                <span class="font-bold">{{ analytics.match_rate }}%</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
+                                <span>{{ _('Items This Week') }}</span>
+                                <span class="font-bold text-primary">{{ analytics.items_this_week }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="col-span-2">
+                        <h3 class="text-lg font-semibold mb-4">{{ _('Top Contributors') }}</h3>
+                        <div class="space-y-2">
+                            {% for user in analytics.top_contributors %}
+                            <div class="flex justify-between items-center p-3 bg-muted/20 rounded">
+                                <div>
+                                    <div class="font-medium">{{ user.full_name }}</div>
+                                    <div class="text-xs text-muted">{{ user.registration_no }}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-bold text-primary">{{ user.items_count }} {{ _('items') }}</div>
+                                    <div class="text-xs text-muted">{{ user.points }} {{ _('points') }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tab-btn {
+        padding: 1rem 1.5rem;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+        color: hsl(var(--muted-foreground));
+        transition: var(--transition-fast);
+        border-bottom: 2px solid transparent;
+    }
+
+    .tab-btn:hover {
+        color: hsl(var(--foreground));
+        background: hsl(var(--muted) / 0.3);
+    }
+
+    .tab-btn.active {
+        color: hsl(var(--primary));
+        border-bottom-color: hsl(var(--primary));
+        background: hsl(var(--primary) / 0.1);
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    .item-archived {
+        background: hsl(var(--destructive) / 0.05);
+    }
+
+    tbody tr:hover {
+        background: hsl(var(--muted) / 0.3);
+        transition: var(--transition-fast);
+    }
+
+    @media (max-width: 1024px) {
+        .grid-cols-4 {
+            grid-template-columns: repeat(2, 1fr) !important;
+        }
+
+        .grid-cols-2 {
+            grid-template-columns: 1fr !important;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .grid-cols-4 {
+            grid-template-columns: 1fr !important;
+        }
+
+        table {
+            font-size: 0.875rem;
+        }
+
+        th,
+        td {
+            padding: 0.5rem !important;
+        }
+    }
+</style>
+
+<script>
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tab + '-tab').classList.add('active');
+        });
+    });
+
+    // Handle URL hash for tab deep-linking
+    function handleHash() {
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            const tabBtn = document.querySelector(`.tab-btn[data-tab="${hash}"]`);
+            if (tabBtn) {
+                tabBtn.click();
+            }
+        }
+    }
+
+    // Call on load and hash change
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+
+    // User search
+    document.getElementById('user-search')?.addEventListener('input', (e) => {
+        const search = e.target.value.toLowerCase();
+        document.querySelectorAll('.user-row').forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(search) ? '' : 'none';
+        });
+    });
+
+    // Role filter
+    document.getElementById('role-filter')?.addEventListener('change', (e) => {
+        const role = e.target.value;
+        document.querySelectorAll('.user-row').forEach(row => {
+            if (!role || row.dataset.role === role) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+
+    // Action filter
+    document.getElementById('action-filter')?.addEventListener('change', (e) => {
+        const action = e.target.value;
+        document.querySelectorAll('.transaction-row').forEach(row => {
+            if (!action || row.dataset.action === action) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+
+    // Status filter
+    document.getElementById('status-filter')?.addEventListener('change', (e) => {
+        const status = e.target.value;
+        document.querySelectorAll('.item-row').forEach(row => {
+            if (!status || row.dataset.status === status) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+
+    // Active filter
+    document.getElementById('active-filter')?.addEventListener('change', (e) => {
+        const active = e.target.value;
+        document.querySelectorAll('.item-row').forEach(row => {
+            if (!active || row.dataset.active === active) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+
+    // User actions
+    function viewUserDetails(userId) {
+        window.location.href = `/admin/user/${userId}`;
+    }
+
+    function changeUserRole(userId, regNo) {
+        const newRole = prompt(`Change role for ${regNo}:\n\nEnter new role (student/admin/hod):`);
+        if (newRole && ['student', 'admin', 'hod'].includes(newRole.toLowerCase())) {
+            fetch(`/admin/user/${userId}/role`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ role: newRole.toLowerCase() })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Role updated successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error updating role: ' + error);
+                });
+        }
+    }
+    // Charts Implementation
+    let trendChart, engChart, peakChart;
+
+    function initCharts() {
+        if (trendChart) return; // Already init
+
+        fetch('/admin/analytics/data')
+            .then(res => res.json())
+            .then(data => {
+                const dates = data.map(d => new Date(d.date).toLocaleDateString());
+
+                // 1. Items Trend Chart
+                const trendCtx = document.getElementById('itemsTrendChart').getContext('2d');
+                trendChart = new Chart(trendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            { label: 'Lost', data: data.map(d => d.lost), borderColor: '#f59e0b', tension: 0.3 },
+                            { label: 'Found', data: data.map(d => d.found), borderColor: '#10b981', tension: 0.3 },
+                            { label: 'Returned', data: data.map(d => d.returned), borderColor: '#3b82f6', tension: 0.3 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                // 2. User Engagement Chart
+                const engCtx = document.getElementById('userEngagementChart').getContext('2d');
+                engChart = new Chart(engCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            { label: 'New Users', data: data.map(d => d.new_users), backgroundColor: '#3b82f6' },
+                            { label: 'Logins', data: data.map(d => d.logins), backgroundColor: '#8b5cf6' }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                // 3. Hourly Peak Chart
+                const lastDay = data[data.length - 1];
+                const hours = Object.keys(lastDay.peak_hours).sort((a, b) => a - b);
+                const counts = hours.map(h => lastDay.peak_hours[h]);
+
+                const peakCtx = document.getElementById('hourlyPeakChart').getContext('2d');
+                peakChart = new Chart(peakCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: hours.map(h => h + ':00'),
+                        datasets: [{ label: 'Reports', data: counts, backgroundColor: '#f43f5e' }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            });
+    }
+
+    // Trigger charts when analytics tab is clicked
+    document.querySelector('[data-tab="analytics"]').addEventListener('click', initCharts);
+    if (window.location.hash === '#analytics') initCharts();
+</script>
+{% endblock %}

@@ -9,9 +9,9 @@
             <h2 class="card-title text-2xl">{{ title }}</h2>
             <p class="card-description">
                 {% if item_type == 'Found' %}
-                Upload a photo to help AI identify the item
+                {{ _('Upload a photo to help AI identify the item') }}
                 {% else %}
-                Provide details about the lost item
+                {{ _('Provide details about the lost item') }}
                 {% endif %}
             </p>
         </div>
@@ -44,8 +44,45 @@
                                                 </path>
                                             </svg>
                                         </div>
-                                        <p class="font-medium">Click to upload photo</p>
-                                        <p class="text-xs text-muted mt-1">Supports JPG, PNG (Max 16MB)</p>
+                                        <p class="font-medium">{{ _('Click to upload photo') }}</p>
+                                        <p class="text-xs text-muted mt-1 mb-4">{{ _('Supports JPG, PNG (Max 16MB)') }}
+                                        </p>
+                                        <button type="button" id="start-camera"
+                                            class="btn btn-sm btn-outline flex items-center gap-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <path
+                                                    d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                                                <circle cx="12" cy="13" r="3" />
+                                            </svg>
+                                            {{ _('Use Camera') }}
+                                        </button>
+                                    </div>
+                                    <div id="camera-interface" class="hidden absolute inset-0 bg-black flex flex-col">
+                                        <video id="video" class="w-full h-full object-cover" autoplay
+                                            playsinline></video>
+                                        <canvas id="canvas" class="hidden"></canvas>
+                                        <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+                                            <button type="button" id="capture-photo"
+                                                class="p-4 rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-110 transition-transform">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                    <circle cx="12" cy="12" r="3" />
+                                                </svg>
+                                            </button>
+                                            <button type="button" id="stop-camera"
+                                                class="p-4 rounded-full bg-destructive text-destructive-foreground shadow-lg hover:scale-110 transition-transform">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -65,8 +102,8 @@
                             <label class="form-label" for="item_name">
                                 {{ form.item_name.label.text }} <span class="text-destructive">*</span>
                             </label>
-                            {{ form.item_name(class="form-input text-lg", id="item_name", placeholder="e.g. iPhone 13,
-                            Blue Wallet") }}
+                            {{ form.item_name(class="form-input text-lg", id="item_name", placeholder=_('e.g. iPhone 13,
+                            Blue Wallet')) }}
                             {% if form.item_name.errors %}
                             <div class="form-error">{{ form.item_name.errors[0] }}</div>
                             {% endif %}
@@ -77,8 +114,8 @@
                             <label class="form-label" for="description">
                                 {{ form.description.label.text }} <span class="text-destructive">*</span>
                             </label>
-                            {{ form.description(class="form-textarea", id="description", rows="5", placeholder="Describe
-                            color, brand, distinct marks...") }}
+                            {{ form.description(class="form-textarea", id="description", rows="5",
+                            placeholder=_('Describe color, brand, distinct marks...')) }}
                             {% if form.description.errors %}
                             <div class="form-error">{{ form.description.errors[0] }}</div>
                             {% endif %}
@@ -88,8 +125,8 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div class="form-group">
                                 <label class="form-label">
-                                    {% if item_type == 'Lost' %}Date Lost{% else %}Date Found{% endif %} <span
-                                        class="text-destructive">*</span>
+                                    {% if item_type == 'Lost' %}{{ _('Date Lost') }}{% else %}{{ _('Date Found') }}{%
+                                    endif %} <span class="text-destructive">*</span>
                                 </label>
                                 {% if item_type == 'Lost' %}
                                 {{ form.lost_date(class="form-input", type="date") }}
@@ -102,22 +139,22 @@
                                 <label class="form-label" for="location">
                                     {{ form.location.label.text }} <span class="text-destructive">*</span>
                                 </label>
-                                {{ form.location(class="form-input", id="location", placeholder="e.g. Library") }}
+                                {{ form.location(class="form-input", id="location", placeholder=_('e.g. Library')) }}
                             </div>
                         </div>
 
                         {% if item_type == 'Found' %}
                         <!-- Confirmation moved up -->
                         <div id="confirmation-banner" class="alert alert-warning mb-4" style="display:none;">
-                            <strong>Valuable Item Detected</strong>
-                            <p class="text-sm">Please verify the photo and tick the box below to proceed.</p>
+                            <strong>{{ _('Valuable Item Detected') }}</strong>
+                            <p class="text-sm">{{ _('Please verify the photo and tick the box below to proceed.') }}</p>
                         </div>
                         <div class="form-group" id="phone-confirm-group" style="display:none;">
                             <label
                                 class="flex items-center gap-3 p-3 border-2 border-warning/50 rounded bg-warning/5 cursor-pointer hover:bg-warning/10 transition-colors">
                                 {{ form.phone_confirm(class="w-6 h-6", id="phone_confirm") }}
-                                <span class="font-bold text-warning-foreground">I confirm this photo shows the claimed
-                                    item</span>
+                                <span class="font-bold text-warning-foreground">{{ _('I confirm this photo shows the
+                                    claimed item') }}</span>
                             </label>
                             {% if form.phone_confirm.errors %}
                             <div class="form-error">{{ form.phone_confirm.errors[0] }}</div>
@@ -128,7 +165,7 @@
                         <!-- Actions -->
                         <div class="flex gap-4 mt-8 pt-4 border-t border-border/50">
                             {{ form.submit(class="btn btn-primary btn-lg flex-1") }}
-                            <a href="{{ url_for('items') }}" class="btn btn-outline btn-lg">Cancel</a>
+                            <button type="button" onclick="history.back()" class="btn btn-outline btn-lg">Back</button>
                         </div>
                     </div>
                 </div>
@@ -139,17 +176,17 @@
     <!-- Info Card -->
     <div class="card tips-card mt-6">
         <div class="card-header">
-            <h3 class="card-title text-lg">Tips for Better Results</h3>
+            <h3 class="card-title text-lg">{{ _('Tips for Better Results') }}</h3>
         </div>
         <div class="card-content">
             <ul class="text-sm text-muted" style="list-style: none; padding-left: 0;">
-                <li class="mb-2">Use clear, well-lit photos</li>
-                <li class="mb-2">Include visible text (ID cards, product labels, etc.)</li>
-                <li class="mb-2">Take close-up shots showing distinctive features</li>
-                <li class="mb-2">Provide detailed descriptions</li>
+                <li class="mb-2">{{ _('Use clear, well-lit photos') }}</li>
+                <li class="mb-2">{{ _('Include visible text (ID cards, product labels, etc.)') }}</li>
+                <li class="mb-2">{{ _('Take close-up shots showing distinctive features') }}</li>
+                <li class="mb-2">{{ _('Provide detailed descriptions') }}</li>
                 {% if item_type == 'Found' %}
-                <li class="mb-2">AI will analyze your image and suggest item names</li>
-                <li class="mb-2">Text extraction works best with ID cards, books, and labeled items</li>
+                <li class="mb-2">{{ _('AI will analyze your image and suggest item names') }}</li>
+                <li class="mb-2">{{ _('Text extraction works best with ID cards, books, and labeled items') }}</li>
                 {% endif %}
             </ul>
         </div>
@@ -200,6 +237,20 @@
 </script>
 
 <style>
+    /* Loading Spinner */
+    .spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid hsl(var(--muted-foreground)/0.2);
+        border-top-color: hsl(var(--primary));
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
     /* Make image preview clickable */
     .image-preview {
         cursor: pointer;
@@ -224,6 +275,66 @@
     }
 
     /* Desktop Responsive Layout */
+    /* Camera Interface Styles */
+    #camera-interface {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #000;
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #camera-interface.hidden {
+        display: none;
+    }
+
+    .absolute {
+        position: absolute;
+    }
+
+    .inset-0 {
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+    }
+
+    .bottom-4 {
+        bottom: 1rem;
+    }
+
+    .left-0 {
+        left: 0;
+    }
+
+    .right-0 {
+        right: 0;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .w-full {
+        width: 100%;
+    }
+
+    .h-full {
+        height: 100%;
+    }
+
+    .object-cover {
+        object-fit: cover;
+    }
+
+    .bg-black {
+        background-color: #000;
+    }
+
     @media (min-width: 768px) {
         .desktop-split {
             display: grid;
@@ -282,9 +393,81 @@
         if (imagePreview) {
             imagePreview.parentNode.insertBefore(aiFeedbackArea, imagePreview.nextSibling);
 
-            // Make preview clickable to trigger upload
-            imagePreview.addEventListener('click', () => fileInput.click());
+            // Make preview clickable to trigger upload (but not if camera is active)
+            imagePreview.addEventListener('click', (e) => {
+                if (document.getElementById('camera-interface').classList.contains('hidden')) {
+                    // Only trigger file input if camera is not active and we didn't click the camera button
+                    if (!e.target.closest('#start-camera')) {
+                        fileInput.click();
+                    }
+                }
+            });
         }
+
+        // Camera Logic
+        const startCameraBtn = document.getElementById('start-camera');
+        const stopCameraBtn = document.getElementById('stop-camera');
+        const capturePhotoBtn = document.getElementById('capture-photo');
+        const cameraInterface = document.getElementById('camera-interface');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        let stream = null;
+
+        startCameraBtn.addEventListener('click', async (e) => {
+            e.stopPropagation(); // Prevent triggering file input
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }, // Prefer back camera on mobile
+                    audio: false
+                });
+                video.srcObject = stream;
+                cameraInterface.classList.remove('hidden');
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+                alert("Could not access camera. Please ensure you have given permission.");
+            }
+        });
+
+        const stopCamera = () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            cameraInterface.classList.add('hidden');
+        };
+
+        stopCameraBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            stopCamera();
+        });
+
+        capturePhotoBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!stream) return;
+
+            // Prepare canvas
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert canvas to blob
+            canvas.toBlob((blob) => {
+                const file = new File([blob], "camera_capture.jpg", { type: "image/jpeg" });
+
+                // Create a DataTransfer object to simulate file input selection
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+
+                // Trigger change event to start AI analysis
+                const event = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(event);
+
+                // Stop camera
+                stopCamera();
+            }, 'image/jpeg', 0.9);
+        });
 
         // Handle File Selection
         fileInput.addEventListener('change', async function (e) {
@@ -330,7 +513,7 @@
                         aiFeedbackArea.innerHTML = `
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <span class="text-xs font-semibold uppercase text-muted-foreground tracking-wider">AI Detected Object</span>
+                                    <span class="text-xs font-semibold uppercase text-muted-foreground tracking-wider">{{ _('AI Detected Object') }}</span>
                                     <div class="font-medium text-foreground flex items-center gap-2 mt-1">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
                                         <span class="capitalize">${data.best_guess}</span>
@@ -338,7 +521,7 @@
                                     </div>
                                 </div>
                                 <button type="button" class="btn btn-sm btn-outline text-xs" id="use-suggestion">
-                                    Use Suggestion
+                                    {{ _('Use Suggestion') }}
                                 </button>
                             </div>
                         `;
@@ -355,11 +538,11 @@
                             validateInput();
                         }
                     } else {
-                        aiFeedbackArea.innerHTML = `<span class="text-sm text-muted-foreground">Could not clearly identify the object. Please describe it manually.</span>`;
+                        aiFeedbackArea.innerHTML = `<span class="text-sm text-muted-foreground">{{ _('Could not clearly identify the object. Please describe it manually.') }}</span>`;
                     }
                 } catch (err) {
                     console.error('Analysis failed:', err);
-                    aiFeedbackArea.innerHTML = `<span class="text-sm text-destructive">Image analysis failed. Please try again or skip.</span>`;
+                    aiFeedbackArea.innerHTML = `<span class="text-sm text-destructive">{{ _('Image analysis failed. Please try again or skip.') }}</span>`;
                 }
             }
         });
@@ -411,7 +594,7 @@
                 validationFeedback.innerHTML = `
                     <div class="text-destructive flex items-center gap-1 mt-1 fade-in">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-                        Mismatch: Image looks like <strong>${detectedObject}</strong>, not ${userInput}.
+                        {{ _('Mismatch: Image looks like') }} <strong>${detectedObject}</strong>, {{ _('not') }} ${userInput}.
                     </div>
                 `;
                 itemNameInput.classList.add('border-destructive');
@@ -420,7 +603,7 @@
                 validationFeedback.innerHTML = `
                     <div class="text-success flex items-center gap-1 mt-1 fade-in">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                        Matches detected object!
+                        {{ _('Matches detected object!') }}
                     </div>
                 `;
                 itemNameInput.classList.add('border-success');

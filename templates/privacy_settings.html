@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-user-shield"></i> {{ _('Privacy Settings') }}</h3>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                    {% endif %}
+                    {% endwith %}
+
+                    <form method="POST">
+                        <h5 class="border-bottom pb-2 mb-3">{{ _('Contact Visibility') }}</h5>
+                        <p class="text-muted">{{ _('Control who can see your contact details when you report items.') }}
+                        </p>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="contact_visible" name="contact_visible"
+                                {% if current_user.contact_visible %}checked{% endif %}>
+                            <label class="form-check-label" for="contact_visible">
+                                <strong>{{ _('Show my contact info details on my reports') }}</strong>
+                                <small class="d-block text-muted">
+                                    {{ _('If unchecked, your email and phone will be hidden/masked. Users will need to
+                                    contact you through the platform messaging system (if enabled) or verified match
+                                    requests.') }}
+                                </small>
+                            </label>
+                        </div>
+
+                        <div class="mb-3 form-check ms-4">
+                            <input type="checkbox" class="form-check-input" id="email_public" name="email_public" {% if
+                                current_user.email_public %}checked{% endif %} {% if not current_user.contact_visible
+                                %}disabled{% endif %}>
+                            <label class="form-check-label" for="email_public">{{ _('Make Email Public') }}</label>
+                        </div>
+
+                        <div class="mb-3 form-check ms-4">
+                            <input type="checkbox" class="form-check-input" id="phone_public" name="phone_public" {% if
+                                current_user.phone_public %}checked{% endif %} {% if not current_user.contact_visible
+                                %}disabled{% endif %}>
+                            <label class="form-check-label" for="phone_public">{{ _('Make Phone Number Public')
+                                }}</label>
+                        </div>
+
+                        <h5 class="border-bottom pb-2 mb-3 mt-4">{{ _('Additional Contact Info') }}</h5>
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">{{ _('Phone Number (Optional)') }}</label>
+                            <input type="text" class="form-control" id="phone" name="phone"
+                                value="{{ current_user.phone or '' }}" placeholder="{{ _('+91 XXXXX XXXXX') }}">
+                            <div class="form-text">{{ _('Used to aid in returning items. Standard rates apply.') }}
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> {{ _('Save Privacy Settings') }}
+                            </button>
+                        </div>
+                    </form>
+
+                    <h5 class="border-bottom pb-2 mb-3 mt-5 text-danger">{{ _('GDPR Data Rights') }}</h5>
+                    <p>{{ _('You have the right to access the personal data we store about you.') }}</p>
+                    <a href="{{ url_for('export_my_data') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-download"></i> {{ _('Download My Personal Data (JSON)') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Simple script to enable/disable specific toggles based on the master switch
+    document.getElementById('contact_visible').addEventListener('change', function () {
+        const isChecked = this.checked;
+        document.getElementById('email_public').disabled = !isChecked;
+        document.getElementById('phone_public').disabled = !isChecked;
+    });
+</script>
+{% endblock %}

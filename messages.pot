@@ -1,0 +1,1292 @@
+# Translations template for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-02-27 15:40+0530\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: app.py:1397
+msgid "Exact name match"
+msgstr ""
+
+#: app.py:1404
+#, python-format
+msgid "Keyword match: %(keywords)s"
+msgstr ""
+
+#: app.py:1410
+msgid "Same location reported"
+msgstr ""
+
+#: app.py:1418
+#, python-format
+msgid "Dates match within %(diff)d days"
+msgstr ""
+
+#: app.py:1430
+#, python-format
+msgid "AI detected similar objects: %(labels)s"
+msgstr ""
+
+#: app.py:1991
+msgid "Home"
+msgstr ""
+
+#: app.py:1996 app.py:2034
+msgid "You are already logged in."
+msgstr ""
+
+#: app.py:2010
+msgid "Your account has been created! You are now able to log in"
+msgstr ""
+
+#: app.py:2021
+msgid "That registration number is already taken. Please choose a different one."
+msgstr ""
+
+#: app.py:2023
+msgid "That email address is already registered. Please use a different one."
+msgstr ""
+
+#: app.py:2025
+msgid "Registration failed: Duplicate entry detected."
+msgstr ""
+
+#: app.py:2027
+#, python-format
+msgid ""
+"Registration failed due to a server error. Please try again. Error: "
+"%(error)s"
+msgstr ""
+
+#: app.py:2028 app.py:2029 templates/base.html:568 templates/register.html:67
+msgid "Register"
+msgstr ""
+
+#: app.py:2054
+msgid "Login successful!"
+msgstr ""
+
+#: app.py:2059 app.py:2062
+msgid "Login Unsuccessful. Please check registration number and password"
+msgstr ""
+
+#: app.py:2063 templates/base.html:567 templates/login.html:39
+msgid "Login"
+msgstr ""
+
+#: app.py:2070
+msgid "You have been logged out."
+msgstr ""
+
+#: app.py:2094
+msgid "Your lost item report has been submitted!"
+msgstr ""
+
+#: app.py:2100
+#, python-format
+msgid "🤖 AI discovered %(count)d potential found reports that match your item!"
+msgstr ""
+
+#: app.py:2104
+msgid "Report Lost Item"
+msgstr ""
+
+#: app.py:2117
+msgid "No file part"
+msgstr ""
+
+#: app.py:2121
+msgid "No selected file"
+msgstr ""
+
+#: app.py:2132
+msgid ""
+"Protected/Valuable item detected. Please tick the confirmation box and "
+"re-upload your photo to proceed."
+msgstr ""
+
+#: app.py:2134 app.py:2187 app.py:2358 templates/index.html:16
+msgid "Report Found Item"
+msgstr ""
+
+#: app.py:2149
+#, python-format
+msgid "Error creating upload directory: %(error)s. Check server permissions."
+msgstr ""
+
+#: app.py:2156
+#, python-format
+msgid "Upload directory is not writable. Check server permissions for '%(path)s'."
+msgstr ""
+
+#: app.py:2186
+msgid ""
+"The uploaded image is too wide/distorted for this protected item. Please "
+"upload a clear, central photo of the claimed item and try again."
+msgstr ""
+
+#: app.py:2189
+msgid ""
+"Uploaded image seems unusually wide. Please upload a clear photo "
+"(portrait or closer framing)."
+msgstr ""
+
+#: app.py:2227
+#, python-format
+msgid ""
+"The uploaded image does not appear to show the claimed item. Please "
+"upload a clear photo that shows the item (close-up or different angle) "
+"and try again. Reason: %(reason)s"
+msgstr ""
+
+#: app.py:2276
+#, python-format
+msgid ""
+"Item name mismatch for protected item. %(conflict)s. Please ensure the "
+"item name accurately describes what is in the photo."
+msgstr ""
+
+#: app.py:2278
+#, python-format
+msgid ""
+"The uploaded image is too unclear or doesn't appear to contain a "
+"recognizable object (AI confidence %(confidence)d%%). Please upload a "
+"clearer photo."
+msgstr ""
+
+#: app.py:2280
+msgid ""
+"We are having trouble identifying this item. Please ensure you have "
+"uploaded a clear photo and mentioned the correct item name."
+msgstr ""
+
+#: app.py:2287
+#, python-format
+msgid "✅ High confidence match (%(confidence)d%%) - Item verified!"
+msgstr ""
+
+#: app.py:2289
+#, python-format
+msgid ""
+"⚠️ Medium confidence (%(confidence)d%%) - Please verify the details are "
+"correct."
+msgstr ""
+
+#: app.py:2291
+#, python-format
+msgid ""
+"⚠️ Low confidence match (%(confidence)d%%) - Please double-check item "
+"name and image match."
+msgstr ""
+
+#: app.py:2297
+#, python-format
+msgid "Error saving image: %(error)s. Check server disk space or permissions."
+msgstr ""
+
+#: app.py:2345
+#, python-format
+msgid "Your found item report has been submitted! You earned %(points)d points!"
+msgstr ""
+
+#: app.py:2347
+msgid "Your found item report has been submitted!"
+msgstr ""
+
+#: app.py:2352
+#, python-format
+msgid "🤖 AI discovered %(count)d potential lost reports that match your item!"
+msgstr ""
+
+#: app.py:2357
+#, python-format
+msgid "Invalid file type. Allowed: %(extensions)s"
+msgstr ""
+
+#: app.py:2388 templates/item_list.html:6
+msgid "Lost & Found Items"
+msgstr ""
+
+#: app.py:2397
+msgid "Item Not Found"
+msgstr ""
+
+#: app.py:2411
+msgid "Message posted."
+msgstr ""
+
+#: app.py:2417 templates/item_detail_modern.html:197
+msgid "Item Details"
+msgstr ""
+
+#: app.py:2431
+msgid "Item not found."
+msgstr ""
+
+#: app.py:2446
+msgid "Item has been successfully moved to history."
+msgstr ""
+
+#: app.py:2449
+msgid "Item is already in history."
+msgstr ""
+
+#: app.py:2468
+msgid "Forbidden"
+msgstr ""
+
+#: app.py:2487
+msgid "Server Error"
+msgstr ""
+
+#: app.py:2500
+msgid "You do not have permission to access the admin panel."
+msgstr ""
+
+#: app.py:2578 templates/admin_dashboard.html:6
+msgid "Admin Dashboard"
+msgstr ""
+
+#: app.py:2605
+#, python-format
+msgid "User: %(name)s"
+msgstr ""
+
+#: app.py:2651
+msgid "You do not have permission to view item history."
+msgstr ""
+
+#: app.py:2658 templates/item_history.html:5
+msgid "Item History"
+msgstr ""
+
+#: app.py:2687
+msgid "No file selected."
+msgstr ""
+
+#: app.py:2701
+#, python-format
+msgid "Unable to create upload directory: %(error)s"
+msgstr ""
+
+#: app.py:2708
+#, python-format
+msgid "Failed to save file: %(error)s"
+msgstr ""
+
+#: app.py:2723
+msgid "Profile photo updated."
+msgstr ""
+
+#: app.py:2726
+msgid "Invalid file type."
+msgstr ""
+
+#: app.py:2729 templates/profile.html:27
+msgid "Edit Profile"
+msgstr ""
+
+#: app.py:2759 templates/index.html:91
+msgid "Your Level"
+msgstr ""
+
+#: app.py:2767
+msgid "Leaderboard"
+msgstr ""
+
+#: app.py:2804
+msgid "Your Profile"
+msgstr ""
+
+#: app.py:2893 app.py:2941 app.py:3087
+msgid "Access denied. Admin or HOD privileges required."
+msgstr ""
+
+#: app.py:2919
+msgid "Analytics Dashboard"
+msgstr ""
+
+#: app.py:2976
+msgid "PDF export is not available. Please install reportlab."
+msgstr ""
+
+#: app.py:2980 app.py:3101
+msgid "Invalid export format"
+msgstr ""
+
+#: app.py:3097
+msgid "PDF export is not available."
+msgstr ""
+
+#: app.py:3202
+msgid "Invalid language selection"
+msgstr ""
+
+#: app.py:3209
+msgid "Language updated successfully"
+msgstr ""
+
+#: app.py:3233
+msgid "Privacy settings updated successfully"
+msgstr ""
+
+#: app.py:3236 templates/base.html:548 templates/privacy_settings.html:9
+msgid "Privacy Settings"
+msgstr ""
+
+#: templates/admin_dashboard.html:7
+msgid "Manage users, items, and view system analytics"
+msgstr ""
+
+#: templates/admin_dashboard.html:15
+msgid "Total Users"
+msgstr ""
+
+#: templates/admin_dashboard.html:21 templates/index.html:79
+msgid "Active Items"
+msgstr ""
+
+#: templates/admin_dashboard.html:27
+msgid "Total Transactions"
+msgstr ""
+
+#: templates/admin_dashboard.html:33
+msgid "Archived Items"
+msgstr ""
+
+#: templates/admin_dashboard.html:48
+msgid "Users"
+msgstr ""
+
+#: templates/admin_dashboard.html:55
+msgid "Transactions"
+msgstr ""
+
+#: templates/admin_dashboard.html:63
+msgid "Items"
+msgstr ""
+
+#: templates/admin_dashboard.html:71 templates/base.html:482
+msgid "Analytics"
+msgstr ""
+
+#: templates/admin_dashboard.html:81
+msgid "User Management"
+msgstr ""
+
+#: templates/admin_dashboard.html:83
+msgid "Search users..."
+msgstr ""
+
+#: templates/admin_dashboard.html:86
+msgid "All Roles"
+msgstr ""
+
+#: templates/admin_dashboard.html:87 templates/admin_dashboard.html:126
+#: templates/item_detail_modern.html:166
+msgid "Student"
+msgstr ""
+
+#: templates/admin_dashboard.html:88 templates/admin_dashboard.html:122
+#: templates/base.html:492
+msgid "Admin"
+msgstr ""
+
+#: templates/admin_dashboard.html:89 templates/admin_dashboard.html:124
+msgid "HOD"
+msgstr ""
+
+#: templates/admin_dashboard.html:97 templates/admin_dashboard.html:175
+#: templates/admin_dashboard.html:255 templates/item_history.html:36
+msgid "ID"
+msgstr ""
+
+#: templates/admin_dashboard.html:98
+msgid "Registration No"
+msgstr ""
+
+#: templates/admin_dashboard.html:100
+msgid "Full Name"
+msgstr ""
+
+#: templates/admin_dashboard.html:101
+msgid "Email"
+msgstr ""
+
+#: templates/admin_dashboard.html:102 templates/admin_dashboard.html:143
+msgid "Role"
+msgstr ""
+
+#: templates/admin_dashboard.html:103 templates/admin_dashboard.html:208
+msgid "Points"
+msgstr ""
+
+#: templates/admin_dashboard.html:104
+msgid "Level"
+msgstr ""
+
+#: templates/admin_dashboard.html:105 templates/admin_dashboard.html:262
+#: templates/item_history.html:62
+msgid "Actions"
+msgstr ""
+
+#: templates/admin_dashboard.html:138 templates/item_list.html:98
+msgid "View Details"
+msgstr ""
+
+#: templates/admin_dashboard.html:139 templates/admin_dashboard.html:301
+msgid "View"
+msgstr ""
+
+#: templates/admin_dashboard.html:142
+msgid "Change Role"
+msgstr ""
+
+#: templates/admin_dashboard.html:158
+msgid "Transaction Logs"
+msgstr ""
+
+#: templates/admin_dashboard.html:161
+msgid "All Actions"
+msgstr ""
+
+#: templates/admin_dashboard.html:162 templates/admin_dashboard.html:200
+msgid "Reported Lost"
+msgstr ""
+
+#: templates/admin_dashboard.html:163 templates/admin_dashboard.html:202
+msgid "Reported Found"
+msgstr ""
+
+#: templates/admin_dashboard.html:164 templates/admin_dashboard.html:204
+msgid "Deleted"
+msgstr ""
+
+#: templates/admin_dashboard.html:165
+msgid "Message Posted"
+msgstr ""
+
+#: templates/admin_dashboard.html:166
+msgid "Points Awarded"
+msgstr ""
+
+#: templates/admin_dashboard.html:176
+msgid "Timestamp"
+msgstr ""
+
+#: templates/admin_dashboard.html:177
+msgid "User"
+msgstr ""
+
+#: templates/admin_dashboard.html:178
+msgid "Action"
+msgstr ""
+
+#: templates/admin_dashboard.html:179
+msgid "Item ID"
+msgstr ""
+
+#: templates/admin_dashboard.html:180
+msgid "Details"
+msgstr ""
+
+#: templates/admin_dashboard.html:206
+msgid "Message"
+msgstr ""
+
+#: templates/admin_dashboard.html:237
+msgid "All Items Management"
+msgstr ""
+
+#: templates/admin_dashboard.html:240
+msgid "All Status"
+msgstr ""
+
+#: templates/admin_dashboard.html:241 templates/admin_dashboard.html:279
+#: templates/base.html:461 templates/item_detail_modern.html:18
+#: templates/item_list.html:63 templates/profile.html:81
+msgid "Lost"
+msgstr ""
+
+#: templates/admin_dashboard.html:242 templates/admin_dashboard.html:277
+#: templates/base.html:470 templates/item_detail_modern.html:16
+#: templates/item_list.html:61 templates/profile.html:79
+msgid "Found"
+msgstr ""
+
+#: templates/admin_dashboard.html:245 templates/item_history.html:15
+#: templates/item_list.html:25
+msgid "All Items"
+msgstr ""
+
+#: templates/admin_dashboard.html:246 templates/item_history.html:19
+msgid "Active Only"
+msgstr ""
+
+#: templates/admin_dashboard.html:247 templates/item_history.html:23
+msgid "Archived Only"
+msgstr ""
+
+#: templates/admin_dashboard.html:256
+msgid "Item Name"
+msgstr ""
+
+#: templates/admin_dashboard.html:257 templates/item_history.html:42
+msgid "Status"
+msgstr ""
+
+#: templates/admin_dashboard.html:258 templates/item_detail_modern.html:161
+msgid "Reporter"
+msgstr ""
+
+#: templates/admin_dashboard.html:259 templates/item_history.html:50
+msgid "Location"
+msgstr ""
+
+#: templates/admin_dashboard.html:260 templates/item_history.html:48
+msgid "Date"
+msgstr ""
+
+#: templates/admin_dashboard.html:261 templates/item_history.html:57
+msgid "State"
+msgstr ""
+
+#: templates/admin_dashboard.html:294 templates/profile.html:118
+msgid "Active"
+msgstr ""
+
+#: templates/admin_dashboard.html:296 templates/item_detail_modern.html:21
+#: templates/profile.html:122
+msgid "Archived"
+msgstr ""
+
+#: templates/admin_dashboard.html:315
+msgid "System Analytics"
+msgstr ""
+
+#: templates/admin_dashboard.html:321
+msgid "User Statistics"
+msgstr ""
+
+#: templates/admin_dashboard.html:324
+msgid "Total Students"
+msgstr ""
+
+#: templates/admin_dashboard.html:328
+msgid "Total Admins"
+msgstr ""
+
+#: templates/admin_dashboard.html:332
+msgid "Total HODs"
+msgstr ""
+
+#: templates/admin_dashboard.html:336
+msgid "Average Points per User"
+msgstr ""
+
+#: templates/admin_dashboard.html:344
+msgid "Item Statistics"
+msgstr ""
+
+#: templates/admin_dashboard.html:347
+msgid "Total Lost Items"
+msgstr ""
+
+#: templates/admin_dashboard.html:351
+msgid "Total Found Items"
+msgstr ""
+
+#: templates/admin_dashboard.html:355
+msgid "Match Success Rate"
+msgstr ""
+
+#: templates/admin_dashboard.html:359
+msgid "Items This Week"
+msgstr ""
+
+#: templates/admin_dashboard.html:367
+msgid "Top Contributors"
+msgstr ""
+
+#: templates/admin_dashboard.html:376
+msgid "items"
+msgstr ""
+
+#: templates/admin_dashboard.html:377
+msgid "points"
+msgstr ""
+
+#: templates/base.html:7 templates/base.html:618 templates/index.html:6
+msgid "Lost & Found Portal"
+msgstr ""
+
+#: templates/base.html:431 templates/base.html:432
+msgid "Lost & Found"
+msgstr ""
+
+#: templates/base.html:452
+msgid "Browse"
+msgstr ""
+
+#: templates/base.html:501
+msgid "History"
+msgstr ""
+
+#: templates/base.html:507 templates/index.html:12
+msgid "Browse Items"
+msgstr ""
+
+#: templates/base.html:529
+msgid "Toggle dark mode"
+msgstr ""
+
+#: templates/base.html:540
+msgid "Profile"
+msgstr ""
+
+#: templates/base.html:556
+msgid "Logout"
+msgstr ""
+
+#: templates/base.html:609
+msgid "Go Back"
+msgstr ""
+
+#: templates/base.html:618
+msgid ""
+"Powered\n"
+"                by AI"
+msgstr ""
+
+#: templates/index.html:7
+msgid ""
+"Helping students reconnect with their lost items through AI-powered\n"
+"                matching"
+msgstr ""
+
+#: templates/index.html:20
+msgid "Get Started"
+msgstr ""
+
+#: templates/index.html:30
+msgid "How It Works"
+msgstr ""
+
+#: templates/index.html:40
+msgid "Search & Browse"
+msgstr ""
+
+#: templates/index.html:41
+msgid ""
+"Search through lost and found items with powerful filters and\n"
+"                AI-powered matching"
+msgstr ""
+
+#: templates/index.html:53
+msgid "Upload & Verify"
+msgstr ""
+
+#: templates/index.html:54
+msgid ""
+"Upload images with OCR text extraction and AI verification for accurate\n"
+"                matching"
+msgstr ""
+
+#: templates/index.html:66
+msgid "Connect & Claim"
+msgstr ""
+
+#: templates/index.html:67
+msgid ""
+"Communicate with finders through discussions and arrange safe item\n"
+"                handover"
+msgstr ""
+
+#: templates/index.html:83
+msgid "Items Reunited"
+msgstr ""
+
+#: templates/index.html:87
+msgid "Your Points"
+msgstr ""
+
+#: templates/item_detail_modern.html:42
+msgid "AI Verification Analysis"
+msgstr ""
+
+#: templates/item_detail_modern.html:61
+msgid "Confidence Score"
+msgstr ""
+
+#: templates/item_detail_modern.html:72
+msgid "High confidence match - Item name strongly matches image analysis"
+msgstr ""
+
+#: templates/item_detail_modern.html:74
+msgid "Medium confidence - Item name reasonably matches image"
+msgstr ""
+
+#: templates/item_detail_modern.html:76
+msgid "Low confidence - Consider verifying item details with reporter"
+msgstr ""
+
+#: templates/item_detail_modern.html:85
+msgid "View detailed analysis"
+msgstr ""
+
+#: templates/item_detail_modern.html:90
+msgid "OCR Text Match:"
+msgstr ""
+
+#: templates/item_detail_modern.html:92
+msgid "Detected Objects:"
+msgstr ""
+
+#: templates/item_detail_modern.html:100
+msgid "Semantic Match:"
+msgstr ""
+
+#: templates/item_detail_modern.html:114
+msgid "Extracted Text from Image"
+msgstr ""
+
+#: templates/item_detail_modern.html:124 templates/item_history.html:40
+msgid "Description"
+msgstr ""
+
+#: templates/item_detail_modern.html:130 templates/login.html:9
+#: templates/register.html:9
+msgid "Back"
+msgstr ""
+
+#: templates/item_detail_modern.html:135
+msgid ""
+" Are you\n"
+"                                sure you want to archive this item?"
+msgstr ""
+
+#: templates/item_detail_modern.html:137
+msgid "Archive Item"
+msgstr ""
+
+#: templates/item_detail_modern.html:149
+msgid "Discussion"
+msgstr ""
+
+#: templates/item_detail_modern.html:150
+msgid "Ask questions or coordinate with other students about this item"
+msgstr ""
+
+#: templates/item_detail_modern.html:175
+msgid "No messages yet. Start the conversation!"
+msgstr ""
+
+#: templates/item_detail_modern.html:182
+msgid "Write a message..."
+msgstr ""
+
+#: templates/item_detail_modern.html:202
+msgid "DATE"
+msgstr ""
+
+#: templates/item_detail_modern.html:202
+msgid "FOUND"
+msgstr ""
+
+#: templates/item_detail_modern.html:204
+msgid "LOST"
+msgstr ""
+
+#: templates/item_detail_modern.html:209
+msgid "LOCATION"
+msgstr ""
+
+#: templates/item_detail_modern.html:214
+msgid "REPORTED BY"
+msgstr ""
+
+#: templates/item_detail_modern.html:220
+msgid "REPORTED ON"
+msgstr ""
+
+#: templates/item_detail_modern.html:227
+msgid "ARCHIVED"
+msgstr ""
+
+#: templates/item_detail_modern.html:228
+msgid "By:"
+msgstr ""
+
+#: templates/item_detail_modern.html:229
+msgid "On:"
+msgstr ""
+
+#: templates/item_detail_modern.html:240
+msgid "Find AI Smart Matches"
+msgstr ""
+
+#: templates/item_detail_modern.html:256
+msgid "Blockchain Verification"
+msgstr ""
+
+#: templates/item_detail_modern.html:262
+msgid "Verifying authenticity..."
+msgstr ""
+
+#: templates/item_detail_modern.html:268
+msgid "STATUS"
+msgstr ""
+
+#: templates/item_detail_modern.html:274
+msgid ""
+"Transaction\n"
+"                                    Hash"
+msgstr ""
+
+#: templates/item_detail_modern.html:279
+msgid "Generating..."
+msgstr ""
+
+#: templates/item_detail_modern.html:295
+msgid "Found This Item?"
+msgstr ""
+
+#: templates/item_detail_modern.html:299
+msgid "Contact the reporter via discussion"
+msgstr ""
+
+#: templates/item_detail_modern.html:300
+msgid "Ask for verification photos"
+msgstr ""
+
+#: templates/item_detail_modern.html:301
+msgid "Verify item details match"
+msgstr ""
+
+#: templates/item_detail_modern.html:302
+msgid "Arrange safe handover location"
+msgstr ""
+
+#: templates/item_detail_modern.html:353
+msgid "VERIFIED"
+msgstr ""
+
+#: templates/item_detail_modern.html:355
+msgid ""
+"This item is cryptographically secured. The current record matches the "
+"original report recorded in the item ledger."
+msgstr ""
+
+#: templates/item_detail_modern.html:357
+msgid "TAMPERED"
+msgstr ""
+
+#: templates/item_detail_modern.html:359
+msgid "WARNING:"
+msgstr ""
+
+#: templates/item_detail_modern.html:359
+msgid "This record may have been altered since it was first reported."
+msgstr ""
+
+#: templates/item_detail_modern.html:363
+msgid "Verification service offline"
+msgstr ""
+
+#: templates/item_history.html:6
+msgid "Complete archive of all reported items (Admin/HOD only)"
+msgstr ""
+
+#: templates/item_history.html:38
+msgid "Item"
+msgstr ""
+
+#: templates/item_history.html:45
+msgid "Image"
+msgstr ""
+
+#: templates/item_history.html:53
+msgid "Reported By"
+msgstr ""
+
+#: templates/item_history.html:55
+msgid "Reported At"
+msgstr ""
+
+#: templates/item_history.html:60
+msgid "Deleted Info"
+msgstr ""
+
+#: templates/item_history.html:104
+msgid "No image"
+msgstr ""
+
+#: templates/item_list.html:7
+msgid "Browse and search for lost or found items"
+msgstr ""
+
+#: templates/item_list.html:12
+msgid "Report Lost"
+msgstr ""
+
+#: templates/item_list.html:15
+msgid "Report Found"
+msgstr ""
+
+#: templates/item_list.html:29
+msgid "Lost Only"
+msgstr ""
+
+#: templates/item_list.html:33
+msgid "Found Only"
+msgstr ""
+
+#: templates/item_list.html:74
+msgid "AI Confidence:"
+msgstr ""
+
+#: templates/item_list.html:103
+msgid "Archive this item?"
+msgstr ""
+
+#: templates/item_list.html:103
+msgid "Archive"
+msgstr ""
+
+#: templates/item_list.html:104
+msgid "Delete"
+msgstr ""
+
+#: templates/item_list.html:121
+msgid "No Items Found"
+msgstr ""
+
+#: templates/item_list.html:122
+msgid "No active items match your search criteria"
+msgstr ""
+
+#: templates/item_list.html:124
+msgid "Report a Found Item"
+msgstr ""
+
+#: templates/item_matches.html:8
+msgid "AI Smart Matches for"
+msgstr ""
+
+#: templates/item_matches.html:9
+msgid "Based on AI analysis, keywords, location, and date proximity."
+msgstr ""
+
+#: templates/item_matches.html:35
+msgid "Match"
+msgstr ""
+
+#: templates/item_matches.html:52
+msgid "View & Message"
+msgstr ""
+
+#: templates/item_matches.html:61
+msgid "No High-Confidence Matches Yet"
+msgstr ""
+
+#: templates/item_matches.html:62
+msgid ""
+"Our AI system couldn't find any direct matches in the database at this "
+"time."
+msgstr ""
+
+#: templates/item_matches.html:64
+msgid "Browse All Items"
+msgstr ""
+
+#: templates/login.html:15
+msgid "Welcome back to Lost & Found Portal"
+msgstr ""
+
+#: templates/login.html:24 templates/register.html:25
+msgid "e.g. 2023BTECH12345"
+msgstr ""
+
+#: templates/login.html:32
+msgid "Your Password"
+msgstr ""
+
+#: templates/login.html:43
+msgid "Need an account?"
+msgstr ""
+
+#: templates/login.html:44
+msgid "Register Here"
+msgstr ""
+
+#: templates/privacy_settings.html:21
+msgid "Contact Visibility"
+msgstr ""
+
+#: templates/privacy_settings.html:22
+msgid "Control who can see your contact details when you report items."
+msgstr ""
+
+#: templates/privacy_settings.html:29
+msgid "Show my contact info details on my reports"
+msgstr ""
+
+#: templates/privacy_settings.html:31
+msgid ""
+"If unchecked, your email and phone will be hidden/masked. Users will need"
+" to\n"
+"                                    contact you through the platform "
+"messaging system (if enabled) or verified match\n"
+"                                    requests."
+msgstr ""
+
+#: templates/privacy_settings.html:42
+msgid "Make Email Public"
+msgstr ""
+
+#: templates/privacy_settings.html:49
+msgid "Make Phone Number Public"
+msgstr ""
+
+#: templates/privacy_settings.html:53
+msgid "Additional Contact Info"
+msgstr ""
+
+#: templates/privacy_settings.html:55
+msgid "Phone Number (Optional)"
+msgstr ""
+
+#: templates/privacy_settings.html:57
+msgid "+91 XXXXX XXXXX"
+msgstr ""
+
+#: templates/privacy_settings.html:58
+msgid "Used to aid in returning items. Standard rates apply."
+msgstr ""
+
+#: templates/privacy_settings.html:64
+msgid "Save Privacy Settings"
+msgstr ""
+
+#: templates/privacy_settings.html:69
+msgid "GDPR Data Rights"
+msgstr ""
+
+#: templates/privacy_settings.html:70
+msgid "You have the right to access the personal data we store about you."
+msgstr ""
+
+#: templates/privacy_settings.html:72
+msgid "Download My Personal Data (JSON)"
+msgstr ""
+
+#: templates/profile.html:35
+msgid "Level & Points"
+msgstr ""
+
+#: templates/profile.html:40
+msgid "pts"
+msgstr ""
+
+#: templates/profile.html:46
+msgid "Progress to"
+msgstr ""
+
+#: templates/profile.html:46
+msgid "max"
+msgstr ""
+
+#: templates/profile.html:53
+#, python-format
+msgid "%(points)d points to %(next_level)s"
+msgstr ""
+
+#: templates/profile.html:56
+msgid "Maximum level reached!"
+msgstr ""
+
+#: templates/profile.html:68
+msgid "Recent Reports"
+msgstr ""
+
+#: templates/profile.html:69
+msgid "Your recently reported items"
+msgstr ""
+
+#: templates/profile.html:96
+msgid "You haven't reported any items yet."
+msgstr ""
+
+#: templates/profile.html:98
+msgid "Report Your First Item"
+msgstr ""
+
+#: templates/profile.html:109
+msgid "Admin Overview"
+msgstr ""
+
+#: templates/profile.html:114
+msgid "Total Items"
+msgstr ""
+
+#: templates/profile.html:127
+msgid "View Full History"
+msgstr ""
+
+#: templates/register.html:14
+msgid "Create Account"
+msgstr ""
+
+#: templates/register.html:15
+msgid "Join the community to report and claim items"
+msgstr ""
+
+#: templates/register.html:33
+msgid "Your Name"
+msgstr ""
+
+#: templates/register.html:42
+msgid "Optional: email@example.com"
+msgstr ""
+
+#: templates/register.html:51
+msgid "Strong password"
+msgstr ""
+
+#: templates/register.html:59
+msgid "Confirm password"
+msgstr ""
+
+#: templates/register.html:71
+msgid "Already have an account?"
+msgstr ""
+
+#: templates/register.html:72
+msgid "Log In"
+msgstr ""
+
+#: templates/report_item_modern.html:12
+msgid "Upload a photo to help AI identify the item"
+msgstr ""
+
+#: templates/report_item_modern.html:14
+msgid "Provide details about the lost item"
+msgstr ""
+
+#: templates/report_item_modern.html:47
+msgid "Click to upload photo"
+msgstr ""
+
+#: templates/report_item_modern.html:48
+msgid "Supports JPG, PNG (Max 16MB)"
+msgstr ""
+
+#: templates/report_item_modern.html:59
+msgid "Use Camera"
+msgstr ""
+
+#: templates/report_item_modern.html:105
+msgid ""
+"e.g. iPhone 13,\n"
+"                            Blue Wallet"
+msgstr ""
+
+#: templates/report_item_modern.html:118
+msgid "Describe color, brand, distinct marks..."
+msgstr ""
+
+#: templates/report_item_modern.html:128
+msgid "Date Lost"
+msgstr ""
+
+#: templates/report_item_modern.html:128
+msgid "Date Found"
+msgstr ""
+
+#: templates/report_item_modern.html:142
+msgid "e.g. Library"
+msgstr ""
+
+#: templates/report_item_modern.html:149
+msgid "Valuable Item Detected"
+msgstr ""
+
+#: templates/report_item_modern.html:150
+msgid "Please verify the photo and tick the box below to proceed."
+msgstr ""
+
+#: templates/report_item_modern.html:156
+msgid ""
+"I confirm this photo shows the\n"
+"                                    claimed item"
+msgstr ""
+
+#: templates/report_item_modern.html:179
+msgid "Tips for Better Results"
+msgstr ""
+
+#: templates/report_item_modern.html:183
+msgid "Use clear, well-lit photos"
+msgstr ""
+
+#: templates/report_item_modern.html:184
+msgid "Include visible text (ID cards, product labels, etc.)"
+msgstr ""
+
+#: templates/report_item_modern.html:185
+msgid "Take close-up shots showing distinctive features"
+msgstr ""
+
+#: templates/report_item_modern.html:186
+msgid "Provide detailed descriptions"
+msgstr ""
+
+#: templates/report_item_modern.html:188
+msgid "AI will analyze your image and suggest item names"
+msgstr ""
+
+#: templates/report_item_modern.html:189
+msgid "Text extraction works best with ID cards, books, and labeled items"
+msgstr ""
+
+#: templates/report_item_modern.html:516
+msgid "AI Detected Object"
+msgstr ""
+
+#: templates/report_item_modern.html:524
+msgid "Use Suggestion"
+msgstr ""
+
+#: templates/report_item_modern.html:541
+msgid "Could not clearly identify the object. Please describe it manually."
+msgstr ""
+
+#: templates/report_item_modern.html:545
+msgid "Image analysis failed. Please try again or skip."
+msgstr ""
+
+#: templates/report_item_modern.html:597
+msgid "Mismatch: Image looks like"
+msgstr ""
+
+#: templates/report_item_modern.html:597
+msgid "not"
+msgstr ""
+
+#: templates/report_item_modern.html:606
+msgid "Matches detected object!"
+msgstr ""
+
